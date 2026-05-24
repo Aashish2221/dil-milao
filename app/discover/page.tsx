@@ -101,15 +101,28 @@ export default function DiscoverPage() {
 
       const alreadyLikedIds = likedRows?.map((l) => l.to_user_id) || [];
 
-      // Build query — exclude self and already-liked users
+      // Get blocked IDs in both directions (users I blocked + users who blocked me)
+      const { data: blockRows } = await supabase
+        .from("blocks")
+        .select("blocker_id, blocked_id")
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+      const blockedIds = blockRows?.map((b) =>
+        b.blocker_id === user.id ? b.blocked_id : b.blocker_id
+      ) || [];
+
+      // Combine all IDs to exclude
+      const excludeIds = [...new Set([...alreadyLikedIds, ...blockedIds])];
+
+      // Build query — exclude self, already-liked, and blocked users
       let query = supabase
         .from("profiles")
         .select("*")
         .neq("id", user.id)
         .limit(20);
 
-      if (alreadyLikedIds.length > 0) {
-        query = query.not("id", "in", `(${alreadyLikedIds.join(",")})`);
+      if (excludeIds.length > 0) {
+        query = query.not("id", "in", `(${excludeIds.join(",")})`);
       }
 
       const { data } = await query;
