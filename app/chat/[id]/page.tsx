@@ -21,6 +21,7 @@ export default function ChatPage() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [matchName, setMatchName] = useState("...");
   const [loading, setLoading] = useState(true);
+  const [isOtherOnline, setIsOtherOnline] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,7 +86,32 @@ export default function ChatPage() {
         )
         .subscribe();
 
-      cleanup = () => { supabase.removeChannel(channel); };
+      // Presence: track current user online, watch if other user is online
+      const presenceChannel = supabase.channel("online-users", {
+        config: { presence: { key: user.id } },
+      });
+
+      presenceChannel
+        .on("presence", { event: "sync" }, () => {
+          const state = presenceChannel.presenceState();
+          setIsOtherOnline(otherUserId in state);
+        })
+        .on("presence", { event: "join" }, ({ key }: { key: string }) => {
+          if (key === otherUserId) setIsOtherOnline(true);
+        })
+        .on("presence", { event: "leave" }, ({ key }: { key: string }) => {
+          if (key === otherUserId) setIsOtherOnline(false);
+        })
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await presenceChannel.track({ online_at: new Date().toISOString() });
+          }
+        });
+
+      cleanup = () => {
+        supabase.removeChannel(channel);
+        supabase.removeChannel(presenceChannel);
+      };
     }
 
     init();
@@ -141,8 +167,10 @@ export default function ChatPage() {
         <div className="flex-1">
           <h2 className="text-white font-semibold text-sm">{matchName}</h2>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-green-400/60 text-xs">Online</span>
+            <div className={`w-2 h-2 rounded-full ${isOtherOnline ? "bg-green-400" : "bg-white/20"}`} />
+            <span className={`text-xs ${isOtherOnline ? "text-green-400/60" : "text-white/30"}`}>
+              {isOtherOnline ? "Online" : "Offline"}
+            </span>
           </div>
         </div>
         <Heart size={20} fill="#ff6b6b" className="text-red-400" />
