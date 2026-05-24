@@ -1,9 +1,8 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 192, height: 192 };
-export const contentType = "image/png";
+export const runtime = "edge";
 
-export default function AppleIcon() {
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -14,25 +13,23 @@ export default function AppleIcon() {
           alignItems: "center",
           justifyContent: "center",
           background: "#0a0a0f",
-          borderRadius: "38px",
         }}
       >
-        {/* Gradient pill background */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: "130px",
-            height: "130px",
-            borderRadius: "30px",
+            width: "380px",
+            height: "380px",
+            borderRadius: "88px",
             background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 60%, #f9ca24 100%)",
           }}
         >
-          <div style={{ fontSize: 80, color: "white", lineHeight: 1 }}>♥</div>
+          <div style={{ fontSize: 240, color: "white", lineHeight: 1 }}>♥</div>
         </div>
       </div>
     ),
-    { ...size }
+    { width: 512, height: 512 }
   );
 }
