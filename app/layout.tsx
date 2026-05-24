@@ -38,6 +38,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        {/* Capture PWA install prompt before React hydrates */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__pwaPrompt = e;
+          });
+        `}} />
+      </head>
       <body className="min-h-full">
         <ServiceWorker />
         {children}

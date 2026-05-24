@@ -64,6 +64,13 @@ export default function Navbar() {
     let cleanup: (() => void) | undefined;
     init().then((fn) => { cleanup = fn; });
 
+    // Check if the prompt was already captured before React mounted
+    const early = (window as unknown as Record<string, unknown>).__pwaPrompt as BeforeInstallPromptEvent | undefined;
+    if (early) {
+      installPrompt.current = early;
+      setInstallable(true);
+    }
+
     function onBeforeInstallPrompt(e: Event) {
       e.preventDefault();
       installPrompt.current = e as BeforeInstallPromptEvent;
