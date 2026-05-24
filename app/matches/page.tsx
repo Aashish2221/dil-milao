@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, MapPin, MoreVertical, UserX, ShieldX } from "lucide-react";
+import Image from "next/image";
+import { Heart, MessageCircle, MapPin, MoreVertical, UserX, ShieldX, Flag } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import ReportModal from "@/components/ReportModal";
 import { createClient } from "@/lib/supabase";
 
 type Match = {
@@ -11,13 +13,50 @@ type Match = {
   age: number;
   city: string;
   bio: string;
+  photo_url: string;
   matched_at: string;
+  unread: number;
 };
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase();
+}
+
+function Avatar({
+  match,
+  size,
+  colorIdx,
+}: {
+  match: Match;
+  size: number;
+  colorIdx: number;
+}) {
+  const [err, setErr] = useState(false);
+  const sizeClass = size === 64 ? "w-16 h-16 text-xl" : "w-14 h-14 text-lg";
+  if (match.photo_url && !err) {
+    return (
+      <div className={`${sizeClass} rounded-full overflow-hidden flex-shrink-0 relative`}>
+        <Image
+          src={match.photo_url}
+          alt={match.full_name}
+          fill
+          className="object-cover"
+          sizes="64px"
+          onError={() => setErr(true)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`${sizeClass} rounded-full flex items-center justify-center font-bold flex-shrink-0`}
+      style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[colorIdx % AVATAR_COLORS.length]}, ${AVATAR_COLORS[(colorIdx + 1) % AVATAR_COLORS.length]})` }}
+    >
+      {getInitials(match.full_name)}
+    </div>
+  );
 }
 
 function timeAgo(dateStr: string) {
@@ -31,10 +70,12 @@ function MatchMenu({
   matchId,
   onUnmatch,
   onBlock,
+  onReport,
 }: {
   matchId: string;
   onUnmatch: (id: string) => void;
   onBlock: (id: string) => void;
+  onReport: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -73,6 +114,12 @@ function MatchMenu({
           >
             <ShieldX size={15} /> Block
           </button>
+          <button
+            onClick={(e) => { e.preventDefault(); setOpen(false); onReport(matchId); }}
+            className="w-full flex items-center gap-2 px-4 py-3 text-white/40 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+          >
+            <Flag size={15} /> Report
+          </button>
         </div>
       )}
     </div>
@@ -83,6 +130,7 @@ export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function loadMatches() {
@@ -100,13 +148,26 @@ export default function MatchesPage() {
       if (!matchRows || matchRows.length === 0) { setLoading(false); return; }
 
       const matchedIds = matchRows.map((m) => m.matched_user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, age, city, bio")
-        .in("id", matchedIds);
 
-      const profileMap: Record<string, Omit<Match, "matched_at">> = {};
+      const [{ data: profiles }, { data: unreadMsgs }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, age, city, bio, photo_url")
+          .in("id", matchedIds),
+        supabase
+          .from("messages")
+          .select("sender_id")
+          .eq("receiver_id", user.id)
+          .eq("read", false),
+      ]);
+
+      const profileMap: Record<string, Omit<Match, "matched_at" | "unread">> = {};
       profiles?.forEach((p) => { profileMap[p.id] = p; });
+
+      const unreadMap: Record<string, number> = {};
+      unreadMsgs?.forEach((m) => {
+        unreadMap[m.sender_id] = (unreadMap[m.sender_id] || 0) + 1;
+      });
 
       setMatches(
         matchRows.map((m) => ({
@@ -115,7 +176,9 @@ export default function MatchesPage() {
           age: profileMap[m.matched_user_id]?.age || 0,
           city: profileMap[m.matched_user_id]?.city || "",
           bio: profileMap[m.matched_user_id]?.bio || "",
+          photo_url: profileMap[m.matched_user_id]?.photo_url || "",
           matched_at: m.matched_at,
+          unread: unreadMap[m.matched_user_id] || 0,
         }))
       );
       setLoading(false);
@@ -140,6 +203,11 @@ export default function MatchesPage() {
     setMatches((prev) => prev.filter((m) => m.id !== otherId));
   }
 
+  function handleReport(otherId: string) {
+    const match = matches.find((m) => m.id === otherId);
+    if (match) setReportTarget({ id: otherId, name: match.full_name });
+  }
+
   async function handleBlock(otherId: string) {
     if (!confirm("Block this person? They won't be able to contact you and you won't see them again.")) return;
     if (!myUserId) return;
@@ -152,8 +220,16 @@ export default function MatchesPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-20 app-page" style={{ background: "#0a0a0f" }}>
       <Navbar />
+
+      {reportTarget && (
+        <ReportModal
+          reportedId={reportTarget.id}
+          reportedName={reportTarget.name}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
 
       <div className="max-w-md mx-auto px-4 pt-6">
         <div className="mb-6">
@@ -182,11 +258,8 @@ export default function MatchesPage() {
               <div className="flex gap-4 overflow-x-auto pb-2">
                 {matches.slice(0, 5).map((match, i) => (
                   <Link key={match.id} href={`/chat/${match.id}`} className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold border-2 border-red-400"
-                      style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[i % AVATAR_COLORS.length]}, ${AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]})` }}
-                    >
-                      {getInitials(match.full_name)}
+                    <div className="border-2 border-red-400 rounded-full">
+                      <Avatar match={match} size={64} colorIdx={i} />
                     </div>
                     <span className="text-white/60 text-xs truncate w-16 text-center">
                       {match.full_name.split(" ")[0]}
@@ -200,23 +273,27 @@ export default function MatchesPage() {
             <h2 className="text-white/60 text-sm font-medium mb-3">All Matches</h2>
             {matches.map((match, i) => (
               <div key={match.id} className="profile-card rounded-2xl p-4 flex items-center gap-4">
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[i % AVATAR_COLORS.length]}, ${AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]})` }}
-                >
-                  {getInitials(match.full_name)}
-                </div>
+                <Avatar match={match} size={56} colorIdx={i} />
 
                 <Link href={`/chat/${match.id}`} className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-white font-semibold">{match.full_name}, {match.age}</h3>
-                    <span className="text-white/30 text-xs">{timeAgo(match.matched_at)}</span>
+                    <h3 className={`font-semibold ${match.unread > 0 ? "text-white" : "text-white/80"}`}>
+                      {match.full_name}, {match.age}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      {match.unread > 0 && (
+                        <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                          {match.unread > 99 ? "99+" : match.unread}
+                        </span>
+                      )}
+                      <span className="text-white/30 text-xs">{timeAgo(match.matched_at)}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 text-white/30 text-xs mb-1">
                     <MapPin size={10} />
                     <span>{match.city}</span>
                   </div>
-                  <p className="text-white/40 text-sm truncate">{match.bio}</p>
+                  <p className={`text-sm truncate ${match.unread > 0 ? "text-white/60 font-medium" : "text-white/40"}`}>{match.bio}</p>
                 </Link>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -230,6 +307,7 @@ export default function MatchesPage() {
                     matchId={match.id}
                     onUnmatch={handleUnmatch}
                     onBlock={handleBlock}
+                    onReport={handleReport}
                   />
                 </div>
               </div>

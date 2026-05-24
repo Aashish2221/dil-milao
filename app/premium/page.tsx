@@ -85,6 +85,9 @@ export default function PremiumPage() {
   const [userEmail, setUserEmail] = useState("");
   const [isPremium, setIsPremium] = useState(false);
   const [premiumExpires, setPremiumExpires] = useState<string | null>(null);
+  const [boostCredits, setBoostCredits] = useState(0);
+  const [boostActiveUntil, setBoostActiveUntil] = useState<string | null>(null);
+  const [activatingBoost, setActivatingBoost] = useState(false);
   const [paying, setPaying] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -98,7 +101,7 @@ export default function PremiumPage() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("is_premium, premium_expires_at")
+        .select("is_premium, premium_expires_at, boost_credits, boost_active_until")
         .eq("id", user.id)
         .single();
 
@@ -106,9 +109,30 @@ export default function PremiumPage() {
         setIsPremium(true);
         setPremiumExpires(data.premium_expires_at);
       }
+      setBoostCredits(data?.boost_credits ?? 0);
+      if (data?.boost_active_until && new Date(data.boost_active_until) > new Date()) {
+        setBoostActiveUntil(data.boost_active_until);
+      }
     }
     loadUser();
   }, []);
+
+  async function activateBoost() {
+    setActivatingBoost(true);
+    setError("");
+    try {
+      const res = await fetch("/api/boost", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setBoostActiveUntil(data.boost_active_until);
+      setBoostCredits((c) => Math.max(0, c - 1));
+      setSuccess("Boost activated! Your profile is now at the top for 30 minutes. 🚀");
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to activate boost");
+    }
+    setActivatingBoost(false);
+  }
 
   async function openCheckout(planId: string) {
     if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
@@ -297,10 +321,45 @@ export default function PremiumPage() {
 
         {/* Boosts */}
         <div className="mb-10">
-          <h2 className="text-white font-bold text-xl mb-2 flex items-center gap-2">
-            <Zap size={22} className="text-yellow-400" /> Profile Boosts
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-white font-bold text-xl flex items-center gap-2">
+              <Zap size={22} className="text-yellow-400" /> Profile Boosts
+            </h2>
+            {boostCredits > 0 && (
+              <span className="text-yellow-400/80 text-sm font-semibold">{boostCredits} credit{boostCredits !== 1 ? "s" : ""}</span>
+            )}
+          </div>
           <p className="text-white/40 text-sm mb-4">Get 10x more profile views right now!</p>
+
+          {/* Activate boost if credits available */}
+          {boostCredits > 0 && (
+            <div className="glass rounded-xl p-4 mb-4 flex items-center justify-between">
+              {boostActiveUntil && new Date(boostActiveUntil) > new Date() ? (
+                <div>
+                  <p className="text-yellow-400 font-semibold text-sm">🚀 Boost active!</p>
+                  <p className="text-white/40 text-xs">
+                    Expires {new Date(boostActiveUntil).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-white font-semibold text-sm">You have {boostCredits} boost{boostCredits !== 1 ? "s" : ""}</p>
+                    <p className="text-white/40 text-xs">Activates for 30 minutes</p>
+                  </div>
+                  <button
+                    onClick={activateBoost}
+                    disabled={activatingBoost}
+                    className="btn-primary px-4 py-2 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {activatingBoost ? <Loader size={14} className="animate-spin" /> : <Zap size={14} />}
+                    Use Boost
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-3">
             {BOOSTS.map((boost) => (
               <button

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Edit3, LogOut, Crown, Heart, Zap } from "lucide-react";
+import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings } from "lucide-react";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
@@ -93,7 +93,7 @@ export default function ProfilePage() {
   const initials = profile?.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U";
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-24 app-page" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
       <div className="max-w-md mx-auto px-4 pt-6">
@@ -189,6 +189,14 @@ export default function ProfilePage() {
               <p className="text-white/30 text-xs">Unlimited likes, see who liked you</p>
             </div>
             <span className="text-yellow-400 text-sm font-semibold">₹199/mo</span>
+          </button>
+
+          <button
+            onClick={() => router.push("/settings")}
+            className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:border-white/20 transition-colors text-left"
+          >
+            <Settings size={18} className="text-white/50" />
+            <span className="text-white/70 font-medium">Settings</span>
           </button>
 
           <button

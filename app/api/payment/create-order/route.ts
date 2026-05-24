@@ -14,17 +14,25 @@ const AMOUNTS: Record<string, number> = {
 
 export async function POST(req: NextRequest) {
   try {
+    // Validate env vars before anything else
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return NextResponse.json(
+        { error: "Payment not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to environment variables." },
+        { status: 503 }
+      );
+    }
+
     const { plan } = await req.json();
     const amount = AMOUNTS[plan];
 
-    // Instantiated here (not at module level) so env vars are available at runtime
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID!,
-      key_secret: process.env.RAZORPAY_KEY_SECRET!,
-    });
     if (!amount) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
 
     const order = await razorpay.orders.create({
       amount,

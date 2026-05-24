@@ -1,15 +1,19 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX } from "lucide-react";
+import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX, Flag } from "lucide-react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase";
+import ReportModal from "@/components/ReportModal";
 
 type Message = {
   id: string;
   content: string;
   sender_id: string;
+  receiver_id?: string;
   created_at: string;
   is_me?: boolean;
+  read?: boolean;
 };
 
 export default function ChatPage() {
@@ -20,9 +24,11 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [matchName, setMatchName] = useState("...");
+  const [matchPhoto, setMatchPhoto] = useState("");
   const [loading, setLoading] = useState(true);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -35,13 +41,16 @@ export default function ChatPage() {
       if (!user) { router.push("/login"); return; }
       setMyUserId(user.id);
 
-      // Load the other person's name
+      // Load the other person's name and photo
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, photo_url")
         .eq("id", otherUserId)
         .single();
-      if (profile) setMatchName(profile.full_name);
+      if (profile) {
+        setMatchName(profile.full_name);
+        setMatchPhoto(profile.photo_url || "");
+      }
 
       // Load existing messages between these two users
       const { data } = await supabase
@@ -56,7 +65,19 @@ export default function ChatPage() {
       setMessages((data || []).map((m) => ({ ...m, is_me: m.sender_id === user.id })));
       setLoading(false);
 
-      // Subscribe to new messages in real-time
+      // Mark all received messages from the other user as read
+      const myId = user.id;
+      async function markAsRead() {
+        await supabase
+          .from("messages")
+          .update({ read: true })
+          .eq("receiver_id", myId)
+          .eq("sender_id", otherUserId)
+          .eq("read", false);
+      }
+      await markAsRead();
+
+      // Subscribe to new messages + read receipt updates in real-time
       const channel = supabase
         .channel(`chat-${[user.id, otherUserId].sort().join("-")}`)
         .on(
@@ -65,8 +86,8 @@ export default function ChatPage() {
           (payload) => {
             const msg = payload.new as Message;
             const isRelevant =
-              (msg.sender_id === user.id && (msg as unknown as Record<string, string>).receiver_id === otherUserId) ||
-              (msg.sender_id === otherUserId && (msg as unknown as Record<string, string>).receiver_id === user.id);
+              (msg.sender_id === user.id && msg.receiver_id === otherUserId) ||
+              (msg.sender_id === otherUserId && msg.receiver_id === user.id);
             if (isRelevant) {
               setMessages((prev) => {
                 if (prev.find((m) => m.id === msg.id)) return prev;
@@ -81,8 +102,25 @@ export default function ChatPage() {
                     return updated;
                   }
                 }
+                // If the other person sent it, mark it as read immediately
+                if (msg.sender_id === otherUserId) {
+                  markAsRead();
+                }
                 return [...prev, { ...msg, is_me: msg.sender_id === user.id }];
               });
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "messages" },
+          (payload) => {
+            const updated = payload.new as Message;
+            // When the other user reads one of our messages, update its read status
+            if (updated.sender_id === user.id && updated.receiver_id === otherUserId) {
+              setMessages((prev) =>
+                prev.map((m) => m.id === updated.id ? { ...m, read: updated.read } : m)
+              );
             }
           }
         )
@@ -198,9 +236,21 @@ export default function ChatPage() {
         <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
           <ArrowLeft size={22} />
         </button>
-        <div className="w-10 h-10 rounded-full btn-primary flex items-center justify-center font-bold text-white">
-          {matchName.split(" ").map((n) => n[0]).join("").toUpperCase()}
-        </div>
+        {matchPhoto ? (
+          <div className="w-10 h-10 rounded-full overflow-hidden relative flex-shrink-0">
+            <Image
+              src={matchPhoto}
+              alt={matchName}
+              fill
+              className="object-cover"
+              sizes="40px"
+            />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-full btn-primary flex items-center justify-center font-bold text-white flex-shrink-0">
+            {matchName.split(" ").map((n) => n[0]).join("").toUpperCase()}
+          </div>
+        )}
         <div className="flex-1">
           <h2 className="text-white font-semibold text-sm">{matchName}</h2>
           <div className="flex items-center gap-1">
@@ -235,10 +285,24 @@ export default function ChatPage() {
               >
                 <ShieldX size={15} /> Block
               </button>
+              <button
+                onClick={() => { setShowMenu(false); setShowReport(true); }}
+                className="w-full flex items-center gap-2 px-4 py-3 text-white/40 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+              >
+                <Flag size={15} /> Report
+              </button>
             </div>
           )}
         </div>
       </header>
+
+      {showReport && (
+        <ReportModal
+          reportedId={otherUserId}
+          reportedName={matchName}
+          onClose={() => setShowReport(false)}
+        />
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -270,8 +334,13 @@ export default function ChatPage() {
               >
                 {msg.content}
               </div>
-              <div className={`text-white/20 text-xs mt-1 ${msg.is_me ? "text-right" : "text-left"}`}>
-                {formatTime(msg.created_at)}
+              <div className={`flex items-center gap-1 mt-1 ${msg.is_me ? "justify-end" : "justify-start"}`}>
+                <span className="text-white/20 text-xs">{formatTime(msg.created_at)}</span>
+                {msg.is_me && (
+                  <span className={`text-xs leading-none ${msg.read ? "text-blue-400" : "text-white/25"}`}>
+                    {msg.id.startsWith("temp-") ? "✓" : "✓✓"}
+                  </span>
+                )}
               </div>
             </div>
           </div>

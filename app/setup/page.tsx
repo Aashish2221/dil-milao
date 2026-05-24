@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, Camera, MapPin, ChevronRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
@@ -17,6 +17,8 @@ export default function SetupPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [initialising, setInitialising] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -29,6 +31,36 @@ export default function SetupPage() {
     interests: [] as string[],
     photo_url: "",
   });
+
+  // Pre-fill form if profile already exists
+  useEffect(() => {
+    async function loadExisting() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setInitialising(false); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("bio, age, gender, city, interests, photo_url")
+        .eq("id", user.id)
+        .single();
+
+      if (profile && (profile.age || profile.city || profile.bio)) {
+        setIsEditing(true);
+        setForm({
+          bio: profile.bio || "",
+          age: profile.age ? String(profile.age) : "",
+          gender: profile.gender || "",
+          city: profile.city || "",
+          interests: profile.interests || [],
+          photo_url: profile.photo_url || "",
+        });
+        if (profile.photo_url) setPhotoPreview(profile.photo_url);
+      }
+      setInitialising(false);
+    }
+    loadExisting();
+  }, []);
 
   function toggleInterest(interest: string) {
     setForm((f) => ({
@@ -111,7 +143,15 @@ export default function SetupPage() {
       updated_at: new Date().toISOString(),
     });
 
-    router.push("/discover");
+    router.push(isEditing ? "/profile" : "/discover");
+  }
+
+  if (initialising) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0a0a0f, #1a0a1e)" }}>
+        <div className="w-8 h-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -120,7 +160,9 @@ export default function SetupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Heart size={32} fill="#ff6b6b" className="text-red-400 mx-auto mb-3 heartbeat" />
-          <h1 className="text-3xl font-bold gradient-text mb-1">Setup Your Profile</h1>
+          <h1 className="text-3xl font-bold gradient-text mb-1">
+            {isEditing ? "Edit Profile" : "Setup Your Profile"}
+          </h1>
           <p className="text-white/40 text-sm">Step {step} of 3 — Let&apos;s make you shine!</p>
         </div>
 
@@ -327,7 +369,7 @@ export default function SetupPage() {
                   disabled={loading || uploadingPhoto || form.interests.length === 0}
                   className="btn-primary flex-1 py-3 rounded-xl text-white font-semibold disabled:opacity-40"
                 >
-                  {uploadingPhoto ? "Uploading photo..." : loading ? "Saving..." : "Start Matching!"}
+                  {uploadingPhoto ? "Uploading photo..." : loading ? "Saving..." : isEditing ? "Save Changes" : "Start Matching!"}
                 </button>
               </div>
             </div>

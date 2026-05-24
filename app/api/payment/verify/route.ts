@@ -14,6 +14,7 @@ const PLAN_AMOUNTS: Record<string, number> = {
 };
 
 const PREMIUM_PLANS = new Set(["gold", "platinum"]);
+const BOOST_CREDITS: Record<string, number> = { boost_1: 1, boost_5: 5, boost_10: 10 };
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,6 +71,21 @@ export async function POST(req: NextRequest) {
       await supabase
         .from("profiles")
         .update({ is_premium: true, premium_expires_at: expiresAt.toISOString() })
+        .eq("id", user.id);
+    }
+
+    // 5. Credit boost tokens — activate immediately (30 min window per boost)
+    if (plan in BOOST_CREDITS) {
+      const credits = BOOST_CREDITS[plan];
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("boost_credits")
+        .eq("id", user.id)
+        .single();
+
+      await supabase
+        .from("profiles")
+        .update({ boost_credits: (profile?.boost_credits ?? 0) + credits })
         .eq("id", user.id);
     }
 

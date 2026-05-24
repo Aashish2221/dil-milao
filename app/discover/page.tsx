@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
@@ -75,9 +75,17 @@ export default function DiscoverPage() {
   const [current, setCurrent] = useState(0);
   const [action, setAction] = useState<"like" | "skip" | null>(null);
   const [likeCount, setLikeCount] = useState(0);
-  const [isPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [matchAlert, setMatchAlert] = useState(false);
+  const [superLikeAlert, setSuperLikeAlert] = useState(false);
+  const [superLikeCount, setSuperLikeCount] = useState(0);
+  const [photoError, setPhotoError] = useState(false);
+
+  // Swipe gesture state
+  const dragStartX = useRef<number | null>(null);
+  const [dragDeltaX, setDragDeltaX] = useState(0);
+  const isDragging = useRef(false);
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
@@ -90,6 +98,9 @@ export default function DiscoverPage() {
   const [appliedAgeMax, setAppliedAgeMax] = useState(40);
 
   const FREE_LIKES = 10;
+  const FREE_SUPER_LIKES = 1;
+  const PREMIUM_SUPER_LIKES = 5;
+  const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
   const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40;
 
   const loadProfiles = useCallback(async (
@@ -124,6 +135,7 @@ export default function DiscoverPage() {
       .neq("id", uid)
       .gte("age", ageMin)
       .lte("age", ageMax)
+      .order("boost_active_until", { ascending: false, nullsFirst: false })
       .limit(20);
 
     if (city) query = query.eq("city", city);
@@ -144,14 +156,38 @@ export default function DiscoverPage() {
       if (!user) return;
       setUserId(user.id);
 
+      // Check real premium status from profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_premium, premium_expires_at")
+        .eq("id", user.id)
+        .single();
+
+      const premiumActive =
+        profile?.is_premium === true &&
+        (!profile.premium_expires_at || new Date(profile.premium_expires_at) > new Date());
+      setIsPremium(premiumActive);
+
+      // Count today's likes and super likes
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const { count: todayLikes } = await supabase
+
+      if (!premiumActive) {
+        const { count: todayLikes } = await supabase
+          .from("likes")
+          .select("id", { count: "exact", head: true })
+          .eq("from_user_id", user.id)
+          .gte("created_at", todayStart.toISOString());
+        if (todayLikes) setLikeCount(todayLikes);
+      }
+
+      const { count: todaySuperLikes } = await supabase
         .from("likes")
         .select("id", { count: "exact", head: true })
         .eq("from_user_id", user.id)
+        .eq("super_like", true)
         .gte("created_at", todayStart.toISOString());
-      if (todayLikes) setLikeCount(todayLikes);
+      if (todaySuperLikes) setSuperLikeCount(todaySuperLikes);
 
       await loadProfiles(user.id, "", 18, 40);
     }
@@ -209,6 +245,48 @@ export default function DiscoverPage() {
 
     setTimeout(() => {
       setAction(null);
+      setPhotoError(false);
+      setCurrent((c) => c + 1);
+    }, 400);
+  }
+
+  async function handleSuperLike() {
+    if (superLikeCount >= superLikeLimit) return;
+    setAction("like");
+
+    if (userId && profiles[current]) {
+      const toUserId = profiles[current].id;
+
+      if (isRealProfile(toUserId)) {
+        const supabase = createClient();
+        await supabase.from("likes").insert({
+          from_user_id: userId,
+          to_user_id: toUserId,
+          super_like: true,
+        });
+
+        const { data: mutualLike } = await supabase
+          .from("likes")
+          .select("id")
+          .eq("from_user_id", toUserId)
+          .eq("to_user_id", userId)
+          .maybeSingle();
+
+        if (mutualLike) {
+          setMatchAlert(true);
+          setTimeout(() => setMatchAlert(false), 3000);
+        }
+      }
+
+      setSuperLikeCount((c) => c + 1);
+      setLikeCount((c) => c + 1);
+    }
+
+    setSuperLikeAlert(true);
+    setTimeout(() => setSuperLikeAlert(false), 2500);
+    setTimeout(() => {
+      setAction(null);
+      setPhotoError(false);
       setCurrent((c) => c + 1);
     }, 400);
   }
@@ -217,13 +295,47 @@ export default function DiscoverPage() {
   const isDone = current >= profiles.length;
   const isDemo = profile && !isRealProfile(profile.id);
 
+  const SWIPE_THRESHOLD = 80; // px to trigger action
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (isDone || action) return;
+    dragStartX.current = e.clientX;
+    isDragging.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!isDragging.current || dragStartX.current === null) return;
+    setDragDeltaX(e.clientX - dragStartX.current);
+  }
+
+  function onPointerUp() {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const delta = dragDeltaX;
+    setDragDeltaX(0);
+    dragStartX.current = null;
+    if (delta > SWIPE_THRESHOLD) handleAction("like");
+    else if (delta < -SWIPE_THRESHOLD) handleAction("skip");
+  }
+
+  // Derive visual card tilt from drag
+  const swipeRotation = dragDeltaX / 15;
+  const swipeOpacity = Math.max(0.6, 1 - Math.abs(dragDeltaX) / 300);
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-20 app-page" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
       {matchAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 btn-primary px-6 py-3 rounded-full text-white font-bold flex items-center gap-2 shadow-2xl">
           <Heart size={20} fill="white" /> It&apos;s a Match! Check your matches!
+        </div>
+      )}
+
+      {superLikeAlert && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full text-white font-bold flex items-center gap-2 shadow-2xl" style={{ background: "linear-gradient(135deg, #f59e0b, #fbbf24)" }}>
+          <Star size={20} fill="white" /> Super Liked!
         </div>
       )}
 
@@ -240,6 +352,9 @@ export default function DiscoverPage() {
               <div className="text-sm font-semibold">
                 <span className="gradient-text">{likeCount}</span>
                 <span className="text-white/30">/{isPremium ? "∞" : FREE_LIKES}</span>
+              </div>
+              <div className="text-yellow-400/70 text-[10px]">
+                ⭐ {superLikeCount}/{superLikeLimit} super
               </div>
             </div>
             <button
@@ -368,7 +483,13 @@ export default function DiscoverPage() {
                 Clear Filters
               </button>
             ) : (
-              <button onClick={() => setCurrent(0)} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
+              <button
+                onClick={() => {
+                  setCurrent(0);
+                  if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax);
+                }}
+                className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
+              >
                 Start Over
               </button>
             )}
@@ -377,22 +498,38 @@ export default function DiscoverPage() {
           <>
             {/* Profile Card */}
             <div
-              className={`profile-card rounded-3xl overflow-hidden mb-6 transition-all duration-300 ${
-                action === "like" ? "translate-x-8 rotate-3 opacity-70" :
-                action === "skip" ? "-translate-x-8 -rotate-3 opacity-70" : ""
+              className={`profile-card rounded-3xl overflow-hidden mb-6 ${
+                action ? "transition-all duration-300" : "transition-opacity duration-100"
+              } ${
+                action === "like" ? "translate-x-16 rotate-6 opacity-0" :
+                action === "skip" ? "-translate-x-16 -rotate-6 opacity-0" : ""
               }`}
+              style={
+                !action && dragDeltaX !== 0
+                  ? {
+                      transform: `translateX(${dragDeltaX}px) rotate(${swipeRotation}deg)`,
+                      opacity: swipeOpacity,
+                      cursor: "grabbing",
+                    }
+                  : { cursor: "grab" }
+              }
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
             >
               <div
                 className="h-72 flex items-center justify-center relative overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[current % AVATAR_COLORS.length]}22, ${AVATAR_COLORS[(current + 2) % AVATAR_COLORS.length]}22)` }}
               >
-                {profile.photo_url ? (
+                {profile.photo_url && !photoError ? (
                   <Image
                     src={profile.photo_url}
                     alt={profile.full_name}
                     fill
                     className="object-cover"
                     sizes="(max-width: 448px) 100vw, 448px"
+                    onError={() => setPhotoError(true)}
                   />
                 ) : (
                   <div
@@ -402,13 +539,19 @@ export default function DiscoverPage() {
                     {getInitials(profile.full_name)}
                   </div>
                 )}
-                {action === "like" && (
-                  <div className="absolute top-6 left-6 rotate-[-20deg] border-4 border-green-400 text-green-400 font-extrabold text-2xl px-4 py-1 rounded-xl">
+                {(action === "like" || dragDeltaX > 40) && (
+                  <div
+                    className="absolute top-6 left-6 rotate-[-20deg] border-4 border-green-400 text-green-400 font-extrabold text-2xl px-4 py-1 rounded-xl"
+                    style={{ opacity: action ? 1 : Math.min(1, (dragDeltaX - 40) / 60) }}
+                  >
                     LIKE
                   </div>
                 )}
-                {action === "skip" && (
-                  <div className="absolute top-6 right-6 rotate-[20deg] border-4 border-red-400 text-red-400 font-extrabold text-2xl px-4 py-1 rounded-xl">
+                {(action === "skip" || dragDeltaX < -40) && (
+                  <div
+                    className="absolute top-6 right-6 rotate-[20deg] border-4 border-red-400 text-red-400 font-extrabold text-2xl px-4 py-1 rounded-xl"
+                    style={{ opacity: action ? 1 : Math.min(1, (-dragDeltaX - 40) / 60) }}
+                  >
                     SKIP
                   </div>
                 )}
@@ -456,8 +599,17 @@ export default function DiscoverPage() {
                 <button onClick={() => handleAction("like")} className="heart-btn w-20 h-20 rounded-full flex items-center justify-center">
                   <Heart size={36} fill="white" className="text-white" />
                 </button>
-                <button className="skip-btn w-16 h-16 rounded-full flex items-center justify-center">
-                  <Star size={24} className="text-yellow-400" />
+                <button
+                  onClick={handleSuperLike}
+                  disabled={superLikeCount >= superLikeLimit}
+                  title={superLikeCount >= superLikeLimit ? `${superLikeLimit} super like${superLikeLimit > 1 ? "s" : ""} used today` : "Super Like"}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
+                    superLikeCount >= superLikeLimit
+                      ? "glass opacity-40 cursor-not-allowed"
+                      : "skip-btn hover:scale-110"
+                  }`}
+                >
+                  <Star size={24} className={superLikeCount >= superLikeLimit ? "text-white/30" : "text-yellow-400"} fill={superLikeCount >= superLikeLimit ? "none" : "#facc15"} />
                 </button>
               </div>
             )}
