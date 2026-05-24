@@ -2,11 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PROTECTED_PATHS = ['/discover', '/matches', '/chat', '/premium', '/profile', '/setup', '/notifications', '/liked-you', '/settings']
+const AUTH_PATHS = ['/', '/login', '/signup']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const needsAuth = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
-  if (!needsAuth) return NextResponse.next()
+  const isAuthPage = AUTH_PATHS.includes(pathname)
+
+  if (!needsAuth && !isAuthPage) return NextResponse.next()
 
   let response = NextResponse.next({ request })
 
@@ -26,14 +29,23 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+
+  if (!user && needsAuth) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
+
+  if (user && isAuthPage) {
+    return NextResponse.redirect(new URL('/discover', request.url))
+  }
+
   return response
 }
 
 export const config = {
   matcher: [
+    '/',
+    '/login',
+    '/signup',
     '/discover/:path*',
     '/matches/:path*',
     '/chat/:path*',
