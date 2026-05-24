@@ -43,7 +43,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen app-page" style={{ background: "#0a0a0f" }}>
       {/* Header */}
       <header className="glass sticky top-0 z-50 flex items-center gap-3 px-4 py-3">
         <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">

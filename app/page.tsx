@@ -48,15 +48,15 @@ export default function LandingPage() {
 
       {/* Stats */}
       <section className="px-6 pb-20">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-6 text-center">
+        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-3 md:gap-6 text-center">
           {[
             { number: "2L+", label: "Active Users" },
             { number: "50K+", label: "Happy Couples" },
             { number: "4.8★", label: "User Rating" },
           ].map((stat) => (
-            <div key={stat.label} className="glass rounded-2xl p-6">
-              <div className="text-3xl md:text-4xl font-extrabold gradient-text mb-1">{stat.number}</div>
-              <div className="text-white/50 text-sm">{stat.label}</div>
+            <div key={stat.label} className="glass rounded-2xl p-4 md:p-6">
+              <div className="text-2xl md:text-4xl font-extrabold gradient-text mb-1">{stat.number}</div>
+              <div className="text-white/50 text-xs md:text-sm">{stat.label}</div>
             </div>
           ))}
         </div>

@@ -360,22 +360,24 @@ export default function PremiumPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {BOOSTS.map((boost) => (
               <button
                 key={boost.id}
                 onClick={() => openCheckout(boost.id)}
                 disabled={paying === boost.id}
-                className="premium-card rounded-xl p-4 text-center hover:scale-105 transition-transform disabled:opacity-60 disabled:scale-100"
+                className="premium-card rounded-xl p-4 text-center hover:scale-105 transition-transform disabled:opacity-60 disabled:scale-100 flex sm:flex-col items-center sm:items-center gap-3 sm:gap-0"
               >
                 {paying === boost.id ? (
-                  <Loader size={20} className="text-yellow-400 mx-auto mb-2 animate-spin" />
+                  <Loader size={20} className="text-yellow-400 sm:mx-auto sm:mb-2 animate-spin" />
                 ) : (
-                  <Zap size={24} className="text-yellow-400 mx-auto mb-2" />
+                  <Zap size={24} className="text-yellow-400 sm:mx-auto sm:mb-2 flex-shrink-0" />
                 )}
-                <div className="text-white font-bold text-lg">{boost.price}</div>
-                <div className="text-white/60 text-xs font-medium">{boost.name}</div>
-                <div className="text-white/30 text-xs mt-1">{boost.desc}</div>
+                <div className="flex-1 sm:flex-none text-left sm:text-center">
+                  <div className="text-white font-bold text-lg leading-tight">{boost.price}</div>
+                  <div className="text-white/60 text-xs font-medium">{boost.name}</div>
+                  <div className="text-white/30 text-xs mt-0.5 sm:mt-1">{boost.desc}</div>
+                </div>
               </button>
             ))}
           </div>
