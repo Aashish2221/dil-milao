@@ -3,11 +3,6 @@ import Razorpay from "razorpay";
 
 export const dynamic = "force-dynamic";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 // Amounts in paise (1 INR = 100 paise)
 const AMOUNTS: Record<string, number> = {
   gold: 19900,      // ₹199
@@ -21,6 +16,12 @@ export async function POST(req: NextRequest) {
   try {
     const { plan } = await req.json();
     const amount = AMOUNTS[plan];
+
+    // Instantiated here (not at module level) so env vars are available at runtime
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    });
     if (!amount) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
