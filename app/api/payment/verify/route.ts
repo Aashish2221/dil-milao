@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
