@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart } from "lucide-react";
+import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 type Message = {
@@ -22,6 +22,8 @@ export default function ChatPage() {
   const [matchName, setMatchName] = useState("...");
   const [loading, setLoading] = useState(true);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,6 +124,41 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const removeMatchAndMessages = useCallback(async () => {
+    if (!myUserId) return;
+    const supabase = createClient();
+    await supabase.from("matches").delete()
+      .or(`and(user_id.eq.${myUserId},matched_user_id.eq.${otherUserId}),and(user_id.eq.${otherUserId},matched_user_id.eq.${myUserId})`);
+    await supabase.from("messages").delete()
+      .or(`and(sender_id.eq.${myUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${myUserId})`);
+  }, [myUserId, otherUserId]);
+
+  async function handleUnmatch() {
+    if (!confirm("Unmatch with this person? Your conversation will also be deleted.")) return;
+    setShowMenu(false);
+    await removeMatchAndMessages();
+    router.push("/matches");
+  }
+
+  async function handleBlock() {
+    if (!confirm("Block this person? They won't be able to contact you and you won't see them again.")) return;
+    setShowMenu(false);
+    if (!myUserId) return;
+    const supabase = createClient();
+    await supabase.from("blocks").insert({ blocker_id: myUserId, blocked_id: otherUserId });
+    await removeMatchAndMessages();
+    router.push("/discover");
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() || !myUserId) return;
@@ -173,7 +210,34 @@ export default function ChatPage() {
             </span>
           </div>
         </div>
-        <Heart size={20} fill="#ff6b6b" className="text-red-400" />
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu((o) => !o)}
+            className="p-2 text-white/40 hover:text-white/70 transition-colors"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {showMenu && (
+            <div
+              className="absolute right-0 top-10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[160px]"
+              style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <button
+                onClick={handleUnmatch}
+                className="w-full flex items-center gap-2 px-4 py-3 text-orange-400 text-sm hover:bg-white/5 transition-colors"
+              >
+                <UserX size={15} /> Unmatch
+              </button>
+              <button
+                onClick={handleBlock}
+                className="w-full flex items-center gap-2 px-4 py-3 text-red-400 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+              >
+                <ShieldX size={15} /> Block
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Messages */}
