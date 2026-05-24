@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, Compass, MessageCircle, User, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import NotificationBell from "@/components/NotificationBell";
 
 const links = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -36,12 +37,15 @@ export default function Navbar() {
           <Heart size={22} fill="#ff6b6b" className="text-red-400 heartbeat" />
           <span className="text-xl font-bold gradient-text">Dil Milao</span>
         </Link>
-        <button
-          onClick={handleLogout}
-          className="text-white/30 hover:text-white/60 text-xs transition-colors"
-        >
-          Logout
-        </button>
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <button
+            onClick={handleLogout}
+            className="text-white/30 hover:text-white/60 text-xs transition-colors px-2 py-1"
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Bottom nav */}
