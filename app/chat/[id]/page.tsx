@@ -66,8 +66,18 @@ export default function ChatPage() {
               (msg.sender_id === otherUserId && (msg as unknown as Record<string, string>).receiver_id === user.id);
             if (isRelevant) {
               setMessages((prev) => {
-                // avoid duplicate if we already added optimistically
                 if (prev.find((m) => m.id === msg.id)) return prev;
+                // Replace the optimistic temp message for our own sent messages
+                if (msg.sender_id === user.id) {
+                  const tempIdx = prev.findIndex(
+                    (m) => m.id.startsWith("temp-") && m.content === msg.content
+                  );
+                  if (tempIdx !== -1) {
+                    const updated = [...prev];
+                    updated[tempIdx] = { ...msg, is_me: true };
+                    return updated;
+                  }
+                }
                 return [...prev, { ...msg, is_me: msg.sender_id === user.id }];
               });
             }
