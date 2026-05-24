@@ -226,7 +226,7 @@ export default function LikedYouPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 app-page" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
       {matchAlert && (

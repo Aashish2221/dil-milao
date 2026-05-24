@@ -324,7 +324,7 @@ export default function DiscoverPage() {
   const swipeOpacity = Math.max(0.6, 1 - Math.abs(dragDeltaX) / 300);
 
   return (
-    <div className="min-h-screen pb-20 app-page" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
       {matchAlert && (

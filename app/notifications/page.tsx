@@ -137,7 +137,7 @@ export default function NotificationsPage() {
   });
 
   return (
-    <div className="min-h-screen pb-24 app-page" style={{ background: "#0a0a0f" }}>
+    <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
       <div className="max-w-md mx-auto px-4 pt-6">
