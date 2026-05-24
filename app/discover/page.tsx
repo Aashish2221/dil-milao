@@ -71,7 +71,8 @@ function isRealProfile(id: string) {
 }
 
 export default function DiscoverPage() {
-  const [profiles, setProfiles] = useState<Profile[]>(DEMO_PROFILES);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const [action, setAction] = useState<"like" | "skip" | null>(null);
   const [likeCount, setLikeCount] = useState(0);
@@ -109,6 +110,7 @@ export default function DiscoverPage() {
     ageMin: number,
     ageMax: number
   ) => {
+    setLoading(true);
     const supabase = createClient();
 
     const { data: likedRows } = await supabase
@@ -146,6 +148,7 @@ export default function DiscoverPage() {
     const { data } = await query;
     if (data && data.length > 0) setProfiles(data);
     else setProfiles([]);
+    setLoading(false);
   }, []);
 
   // On mount: get user + like count, then load profiles
@@ -201,7 +204,6 @@ export default function DiscoverPage() {
     setAppliedAgeMax(filterAgeMax);
     setShowFilters(false);
     setCurrent(0);
-    setProfiles(DEMO_PROFILES);
     loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax);
   }
 
@@ -467,7 +469,11 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {isDone ? (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
+          </div>
+        ) : isDone ? (
           <div className="text-center py-20">
             <Heart size={64} className="text-red-400/30 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-white mb-3">
