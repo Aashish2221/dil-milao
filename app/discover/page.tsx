@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Heart, X, Star, MapPin, Zap } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
@@ -54,13 +54,17 @@ const DEMO_PROFILES: Profile[] = [
   },
 ];
 
+const CITIES = [
+  "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
+  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow",
+];
+
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase();
 }
 
-// Demo profiles have ids like "1","2" which are not real UUIDs
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isRealProfile(id: string) {
   return UUID_REGEX.test(id);
@@ -74,16 +78,72 @@ export default function DiscoverPage() {
   const [isPremium] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [matchAlert, setMatchAlert] = useState(false);
-  const FREE_LIKES = 10;
 
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterCity, setFilterCity] = useState("");
+  const [filterAgeMin, setFilterAgeMin] = useState(18);
+  const [filterAgeMax, setFilterAgeMax] = useState(40);
+  // Applied filters (only change on "Apply")
+  const [appliedCity, setAppliedCity] = useState("");
+  const [appliedAgeMin, setAppliedAgeMin] = useState(18);
+  const [appliedAgeMax, setAppliedAgeMax] = useState(40);
+
+  const FREE_LIKES = 10;
+  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40;
+
+  const loadProfiles = useCallback(async (
+    uid: string,
+    city: string,
+    ageMin: number,
+    ageMax: number
+  ) => {
+    const supabase = createClient();
+
+    const { data: likedRows } = await supabase
+      .from("likes")
+      .select("to_user_id")
+      .eq("from_user_id", uid);
+
+    const alreadyLikedIds = likedRows?.map((l) => l.to_user_id) || [];
+
+    const { data: blockRows } = await supabase
+      .from("blocks")
+      .select("blocker_id, blocked_id")
+      .or(`blocker_id.eq.${uid},blocked_id.eq.${uid}`);
+
+    const blockedIds = blockRows?.map((b) =>
+      b.blocker_id === uid ? b.blocked_id : b.blocker_id
+    ) || [];
+
+    const excludeIds = [...new Set([...alreadyLikedIds, ...blockedIds])];
+
+    let query = supabase
+      .from("profiles")
+      .select("*")
+      .neq("id", uid)
+      .gte("age", ageMin)
+      .lte("age", ageMax)
+      .limit(20);
+
+    if (city) query = query.eq("city", city);
+    if (excludeIds.length > 0) {
+      query = query.not("id", "in", `(${excludeIds.join(",")})`);
+    }
+
+    const { data } = await query;
+    if (data && data.length > 0) setProfiles(data);
+    else setProfiles([]);
+  }, []);
+
+  // On mount: get user + like count, then load profiles
   useEffect(() => {
-    async function loadProfiles() {
+    async function init() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
 
-      // Get today's like count from Supabase (for free limit)
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const { count: todayLikes } = await supabase
@@ -93,43 +153,33 @@ export default function DiscoverPage() {
         .gte("created_at", todayStart.toISOString());
       if (todayLikes) setLikeCount(todayLikes);
 
-      // Get IDs the user already liked
-      const { data: likedRows } = await supabase
-        .from("likes")
-        .select("to_user_id")
-        .eq("from_user_id", user.id);
-
-      const alreadyLikedIds = likedRows?.map((l) => l.to_user_id) || [];
-
-      // Get blocked IDs in both directions (users I blocked + users who blocked me)
-      const { data: blockRows } = await supabase
-        .from("blocks")
-        .select("blocker_id, blocked_id")
-        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
-
-      const blockedIds = blockRows?.map((b) =>
-        b.blocker_id === user.id ? b.blocked_id : b.blocker_id
-      ) || [];
-
-      // Combine all IDs to exclude
-      const excludeIds = [...new Set([...alreadyLikedIds, ...blockedIds])];
-
-      // Build query — exclude self, already-liked, and blocked users
-      let query = supabase
-        .from("profiles")
-        .select("*")
-        .neq("id", user.id)
-        .limit(20);
-
-      if (excludeIds.length > 0) {
-        query = query.not("id", "in", `(${excludeIds.join(",")})`);
-      }
-
-      const { data } = await query;
-      if (data && data.length > 0) setProfiles(data);
+      await loadProfiles(user.id, "", 18, 40);
     }
-    loadProfiles();
-  }, []);
+    init();
+  }, [loadProfiles]);
+
+  function applyFilters() {
+    if (!userId) return;
+    setAppliedCity(filterCity);
+    setAppliedAgeMin(filterAgeMin);
+    setAppliedAgeMax(filterAgeMax);
+    setShowFilters(false);
+    setCurrent(0);
+    setProfiles(DEMO_PROFILES);
+    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax);
+  }
+
+  function clearFilters() {
+    setFilterCity("");
+    setFilterAgeMin(18);
+    setFilterAgeMax(40);
+    setAppliedCity("");
+    setAppliedAgeMin(18);
+    setAppliedAgeMax(40);
+    setShowFilters(false);
+    setCurrent(0);
+    if (userId) loadProfiles(userId, "", 18, 40);
+  }
 
   async function handleAction(type: "like" | "skip") {
     if (type === "like" && !isPremium && likeCount >= FREE_LIKES) return;
@@ -138,16 +188,10 @@ export default function DiscoverPage() {
     if (type === "like" && userId && profiles[current]) {
       const toUserId = profiles[current].id;
 
-      // Only save to Supabase if this is a real profile (valid UUID), not demo data
       if (isRealProfile(toUserId)) {
         const supabase = createClient();
+        await supabase.from("likes").insert({ from_user_id: userId, to_user_id: toUserId });
 
-        await supabase.from("likes").insert({
-          from_user_id: userId,
-          to_user_id: toUserId,
-        });
-
-        // Check if it's a mutual match
         const { data: mutualLike } = await supabase
           .from("likes")
           .select("id")
@@ -160,7 +204,6 @@ export default function DiscoverPage() {
           setTimeout(() => setMatchAlert(false), 3000);
         }
       }
-
       setLikeCount((c) => c + 1);
     }
 
@@ -178,7 +221,6 @@ export default function DiscoverPage() {
     <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
       <Navbar />
 
-      {/* Match Alert */}
       {matchAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 btn-primary px-6 py-3 rounded-full text-white font-bold flex items-center gap-2 shadow-2xl">
           <Heart size={20} fill="white" /> It&apos;s a Match! Check your matches!
@@ -187,28 +229,149 @@ export default function DiscoverPage() {
 
       <div className="max-w-md mx-auto px-4 pt-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Discover</h1>
             <p className="text-white/40 text-sm">Find your perfect match</p>
           </div>
-          <div className="text-right">
-            <div className="text-white/40 text-xs">Likes used</div>
-            <div className="text-sm font-semibold">
-              <span className="gradient-text">{likeCount}</span>
-              <span className="text-white/30">/{isPremium ? "∞" : FREE_LIKES}</span>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-white/40 text-xs">Likes used</div>
+              <div className="text-sm font-semibold">
+                <span className="gradient-text">{likeCount}</span>
+                <span className="text-white/30">/{isPremium ? "∞" : FREE_LIKES}</span>
+              </div>
             </div>
+            <button
+              onClick={() => setShowFilters((o) => !o)}
+              className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                showFilters || hasActiveFilter
+                  ? "btn-primary text-white"
+                  : "glass text-white/50 hover:text-white"
+              }`}
+            >
+              <SlidersHorizontal size={18} />
+              {hasActiveFilter && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-400" />
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="glass rounded-2xl p-4 mb-4">
+            <h3 className="text-white font-semibold text-sm mb-4">Filter Profiles</h3>
+
+            {/* City */}
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1.5 block">City</label>
+              <div className="relative">
+                <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <select
+                  value={filterCity}
+                  onChange={(e) => setFilterCity(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none"
+                >
+                  <option value="" className="bg-gray-900">Any city</option>
+                  {CITIES.map((c) => (
+                    <option key={c} value={c} className="bg-gray-900">{c}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Age range */}
+            <div className="mb-5">
+              <label className="text-white/50 text-xs mb-1.5 block">
+                Age Range: <span className="text-white">{filterAgeMin}–{filterAgeMax}</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-white/30 text-[10px] mb-1">Min</p>
+                  <input
+                    type="range"
+                    min={18}
+                    max={filterAgeMax}
+                    value={filterAgeMin}
+                    onChange={(e) => setFilterAgeMin(Number(e.target.value))}
+                    className="w-full accent-red-400"
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white/30 text-[10px] mb-1">Max</p>
+                  <input
+                    type="range"
+                    min={filterAgeMin}
+                    max={40}
+                    value={filterAgeMax}
+                    onChange={(e) => setFilterAgeMax(Number(e.target.value))}
+                    className="w-full accent-red-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={clearFilters}
+                className="flex-1 py-2.5 rounded-xl text-white/50 glass text-sm hover:text-white transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={applyFilters}
+                className="btn-primary flex-1 py-2.5 rounded-xl text-white text-sm font-semibold"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active filter chips */}
+        {hasActiveFilter && !showFilters && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {appliedCity && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
+                <MapPin size={10} /> {appliedCity}
+              </span>
+            )}
+            {(appliedAgeMin !== 18 || appliedAgeMax !== 40) && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
+                {appliedAgeMin}–{appliedAgeMax} yrs
+              </span>
+            )}
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1 rounded-full text-xs glass text-white/50 hover:text-white transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         {isDone ? (
           <div className="text-center py-20">
             <Heart size={64} className="text-red-400/30 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-3">You&apos;ve seen everyone!</h2>
-            <p className="text-white/40 mb-8">Check back later for new profiles, or go Premium for priority access.</p>
-            <button onClick={() => setCurrent(0)} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
-              Start Over
-            </button>
+            <h2 className="text-2xl font-bold text-white mb-3">
+              {hasActiveFilter ? "No profiles match your filters!" : "You've seen everyone!"}
+            </h2>
+            <p className="text-white/40 mb-8">
+              {hasActiveFilter
+                ? "Try adjusting your city or age range."
+                : "Check back later for new profiles, or go Premium for priority access."}
+            </p>
+            {hasActiveFilter ? (
+              <button onClick={clearFilters} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
+                Clear Filters
+              </button>
+            ) : (
+              <button onClick={() => setCurrent(0)} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
+                Start Over
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -219,7 +382,6 @@ export default function DiscoverPage() {
                 action === "skip" ? "-translate-x-8 -rotate-3 opacity-70" : ""
               }`}
             >
-              {/* Photo / Avatar */}
               <div
                 className="h-72 flex items-center justify-center relative overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[current % AVATAR_COLORS.length]}22, ${AVATAR_COLORS[(current + 2) % AVATAR_COLORS.length]}22)` }}
@@ -240,7 +402,6 @@ export default function DiscoverPage() {
                     {getInitials(profile.full_name)}
                   </div>
                 )}
-                {/* Like/Skip overlay */}
                 {action === "like" && (
                   <div className="absolute top-6 left-6 rotate-[-20deg] border-4 border-green-400 text-green-400 font-extrabold text-2xl px-4 py-1 rounded-xl">
                     LIKE
@@ -253,13 +414,10 @@ export default function DiscoverPage() {
                 )}
               </div>
 
-              {/* Info */}
               <div className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-2xl font-bold text-white">
-                    {profile.full_name}, <span className="gradient-text">{profile.age}</span>
-                  </h2>
-                </div>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {profile.full_name}, <span className="gradient-text">{profile.age}</span>
+                </h2>
                 <div className="flex items-center gap-1 text-white/40 text-sm mb-3">
                   <MapPin size={14} />
                   <span>{profile.city}</span>
@@ -275,14 +433,12 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            {/* Demo notice */}
             {isDemo && (
               <div className="mb-4 px-4 py-2 rounded-xl text-center text-xs text-yellow-400/70 glass border border-yellow-400/10">
                 Sample profile — invite friends to see real matches!
               </div>
             )}
 
-            {/* Action Buttons */}
             {!isPremium && likeCount >= FREE_LIKES ? (
               <div className="glass rounded-2xl p-5 text-center">
                 <Zap size={32} className="text-yellow-400 mx-auto mb-3" />
@@ -294,16 +450,10 @@ export default function DiscoverPage() {
               </div>
             ) : (
               <div className="flex items-center justify-center gap-6">
-                <button
-                  onClick={() => handleAction("skip")}
-                  className="skip-btn w-16 h-16 rounded-full flex items-center justify-center"
-                >
+                <button onClick={() => handleAction("skip")} className="skip-btn w-16 h-16 rounded-full flex items-center justify-center">
                   <X size={28} className="text-white/60" />
                 </button>
-                <button
-                  onClick={() => handleAction("like")}
-                  className="heart-btn w-20 h-20 rounded-full flex items-center justify-center"
-                >
+                <button onClick={() => handleAction("like")} className="heart-btn w-20 h-20 rounded-full flex items-center justify-center">
                   <Heart size={36} fill="white" className="text-white" />
                 </button>
                 <button className="skip-btn w-16 h-16 rounded-full flex items-center justify-center">
@@ -312,7 +462,6 @@ export default function DiscoverPage() {
               </div>
             )}
 
-            {/* Progress */}
             <p className="text-center text-white/20 text-xs mt-4">
               {current + 1} of {profiles.length} profiles
             </p>
