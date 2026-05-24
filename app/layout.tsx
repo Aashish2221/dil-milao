@@ -1,9 +1,33 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Dil Milao - Modern Indian Dating",
-  description: "Find your perfect match on Dil Milao — India's modern dating app for ages 18-30",
+  title: "Dil Milao — Modern Indian Dating",
+  description: "Find your perfect match on Dil Milao — India's modern dating app for ages 18–30.",
+  keywords: ["dating", "India", "Indian dating", "matchmaking", "dil milao"],
+  applicationName: "Dil Milao",
+  appleWebApp: {
+    capable: true,
+    title: "Dil Milao",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    title: "Dil Milao — Modern Indian Dating",
+    description: "Find your perfect match. India's modern dating app for ages 18–30.",
+    type: "website",
+    locale: "en_IN",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#ff6b6b",
 };
 
 export default function RootLayout({
