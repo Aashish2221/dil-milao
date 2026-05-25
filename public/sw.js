@@ -19,6 +19,35 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+self.addEventListener("push", (e) => {
+  let data = { title: "Dil Milao", body: "You have a new notification!", url: "/discover" };
+  try { data = JSON.parse(e.data.text()); } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/apple-icon",
+      badge: "/apple-icon",
+      data: { url: data.url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: "window" }).then((list) => {
+      const url = e.notification.data?.url || "/discover";
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener("fetch", (e) => {
   // Only handle GET requests
   if (e.request.method !== "GET") return;

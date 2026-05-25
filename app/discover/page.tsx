@@ -104,32 +104,33 @@ export default function DiscoverPage() {
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
   const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40;
 
-  const loadProfiles = useCallback(async (
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchProfiles = useCallback(async (
     uid: string,
     city: string,
     ageMin: number,
-    ageMax: number
+    ageMax: number,
+    excludeExtra: string[] = []
   ) => {
-    setLoading(true);
     const supabase = createClient();
 
     const { data: likedRows } = await supabase
       .from("likes")
       .select("to_user_id")
       .eq("from_user_id", uid);
-
     const alreadyLikedIds = likedRows?.map((l) => l.to_user_id) || [];
 
     const { data: blockRows } = await supabase
       .from("blocks")
       .select("blocker_id, blocked_id")
       .or(`blocker_id.eq.${uid},blocked_id.eq.${uid}`);
-
     const blockedIds = blockRows?.map((b) =>
       b.blocker_id === uid ? b.blocked_id : b.blocker_id
     ) || [];
 
-    const excludeIds = [...new Set([...alreadyLikedIds, ...blockedIds])];
+    const excludeIds = [...new Set([...alreadyLikedIds, ...blockedIds, ...excludeExtra])];
 
     let query = supabase
       .from("profiles")
@@ -146,10 +147,42 @@ export default function DiscoverPage() {
     }
 
     const { data } = await query;
-    if (data && data.length > 0) setProfiles(data);
-    else setProfiles([]);
-    setLoading(false);
+    return data || [];
   }, []);
+
+  const loadProfiles = useCallback(async (
+    uid: string,
+    city: string,
+    ageMin: number,
+    ageMax: number
+  ) => {
+    setLoading(true);
+    setHasMore(true);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax);
+    setProfiles(data);
+    setHasMore(data.length === 20);
+    setLoading(false);
+  }, [fetchProfiles]);
+
+  const loadMore = useCallback(async (
+    uid: string,
+    city: string,
+    ageMin: number,
+    ageMax: number,
+    currentProfiles: Profile[]
+  ) => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const existingIds = currentProfiles.map((p) => p.id);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax, existingIds);
+    if (data.length > 0) {
+      setProfiles((prev) => [...prev, ...data]);
+      setHasMore(data.length === 20);
+    } else {
+      setHasMore(false);
+    }
+    setLoadingMore(false);
+  }, [fetchProfiles, loadingMore, hasMore]);
 
   // On mount: get user + like count, then load profiles
   useEffect(() => {
@@ -240,6 +273,12 @@ export default function DiscoverPage() {
         if (mutualLike) {
           setMatchAlert(true);
           setTimeout(() => setMatchAlert(false), 3000);
+          // Notify the other person about the match
+          fetch("/api/push/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+          }).catch(() => {});
         }
       }
       setLikeCount((c) => c + 1);
@@ -248,7 +287,13 @@ export default function DiscoverPage() {
     setTimeout(() => {
       setAction(null);
       setPhotoError(false);
-      setCurrent((c) => c + 1);
+      setCurrent((c) => {
+        const next = c + 1;
+        if (userId && next >= profiles.length - 3) {
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, profiles);
+        }
+        return next;
+      });
     }, 400);
   }
 
@@ -277,6 +322,11 @@ export default function DiscoverPage() {
         if (mutualLike) {
           setMatchAlert(true);
           setTimeout(() => setMatchAlert(false), 3000);
+          fetch("/api/push/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+          }).catch(() => {});
         }
       }
 
@@ -289,7 +339,13 @@ export default function DiscoverPage() {
     setTimeout(() => {
       setAction(null);
       setPhotoError(false);
-      setCurrent((c) => c + 1);
+      setCurrent((c) => {
+        const next = c + 1;
+        if (userId && next >= profiles.length - 3) {
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, profiles);
+        }
+        return next;
+      });
     }, 400);
   }
 

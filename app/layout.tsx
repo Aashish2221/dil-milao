@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ServiceWorker from "@/components/ServiceWorker";
+import PushNotifications from "@/components/PushNotifications";
 
 export const metadata: Metadata = {
   title: "Dil Milao — Modern Indian Dating",
@@ -49,6 +50,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full">
         <ServiceWorker />
+        <PushNotifications />
         {children}
       </body>
     </html>

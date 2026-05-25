@@ -219,9 +219,14 @@ export default function ChatPage() {
     });
 
     if (error) {
-      // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert("Failed to send message. Please try again.");
+    } else {
+      fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_user_id: otherUserId, title: `${matchName} sent you a message`, body: content.slice(0, 80), url: `/chat/${myUserId}` }),
+      }).catch(() => {});
     }
   }
 

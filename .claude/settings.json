@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(not exist *)"
+      "Bash(not exist *)",
+      "Bash(git checkout *)"
     ]
   }
 }

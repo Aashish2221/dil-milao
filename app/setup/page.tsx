@@ -24,6 +24,7 @@ export default function SetupPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
+    full_name: "",
     bio: "",
     age: "",
     gender: "",
@@ -41,13 +42,14 @@ export default function SetupPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("bio, age, gender, city, interests, photo_url")
+        .select("full_name, bio, age, gender, city, interests, photo_url")
         .eq("id", user.id)
         .single();
 
-      if (profile && (profile.age || profile.city || profile.bio)) {
+      if (profile && (profile.age || profile.city || profile.bio || profile.full_name)) {
         setIsEditing(true);
         setForm({
+          full_name: profile.full_name || "",
           bio: profile.bio || "",
           age: profile.age ? String(profile.age) : "",
           gender: profile.gender || "",
@@ -136,7 +138,6 @@ export default function SetupPage() {
     await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email,
-      full_name: user.user_metadata?.full_name || "",
       ...form,
       photo_url,
       age: parseInt(form.age),
@@ -236,6 +237,18 @@ export default function SetupPage() {
                 ) : (
                   <p className="text-white/30 text-xs mt-2">JPG or PNG, max 5MB (optional)</p>
                 )}
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-1 block">Full Name</label>
+                <input
+                  type="text"
+                  value={form.full_name}
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  required
+                  placeholder="Rahul Sharma"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors"
+                />
               </div>
 
               <div>
