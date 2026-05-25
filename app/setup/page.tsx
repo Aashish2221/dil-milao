@@ -28,6 +28,7 @@ export default function SetupPage() {
     bio: "",
     age: "",
     gender: "",
+    looking_for: "Everyone",
     city: "",
     interests: [] as string[],
     photo_url: "",
@@ -42,7 +43,7 @@ export default function SetupPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, bio, age, gender, city, interests, photo_url")
+        .select("full_name, bio, age, gender, looking_for, city, interests, photo_url")
         .eq("id", user.id)
         .single();
 
@@ -53,6 +54,7 @@ export default function SetupPage() {
           bio: profile.bio || "",
           age: profile.age ? String(profile.age) : "",
           gender: profile.gender || "",
+          looking_for: profile.looking_for || "Everyone",
           city: profile.city || "",
           interests: profile.interests || [],
           photo_url: profile.photo_url || "",
@@ -274,6 +276,26 @@ export default function SetupPage() {
                       onClick={() => setForm({ ...form, gender: g })}
                       className={`py-3 rounded-xl text-sm font-medium transition-all ${
                         form.gender === g
+                          ? "btn-primary text-white"
+                          : "bg-white/5 border border-white/10 text-white/60 hover:border-white/20"
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">I&apos;m looking for</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {["Men", "Women", "Everyone"].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setForm({ ...form, looking_for: g })}
+                      className={`py-3 rounded-xl text-sm font-medium transition-all ${
+                        form.looking_for === g
                           ? "btn-primary text-white"
                           : "bg-white/5 border border-white/10 text-white/60 hover:border-white/20"
                       }`}

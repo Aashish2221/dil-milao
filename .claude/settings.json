@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(not exist *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(mkdir -p \"d:\\\\Git\\\\dil-milao\\\\app\\\\profile\\\\[id]\")"
+    ],
+    "additionalDirectories": [
+      "d:\\Git\\dil-milao\\app\\profile"
     ]
   }
 }

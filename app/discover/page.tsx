@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown, Info } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
 
@@ -15,45 +16,6 @@ type Profile = {
   photo_url: string;
 };
 
-const DEMO_PROFILES: Profile[] = [
-  {
-    id: "1",
-    full_name: "Priya Sharma",
-    age: 24,
-    city: "Mumbai",
-    bio: "Software engineer who loves Bollywood music and weekend treks. Looking for someone to explore the city with!",
-    interests: ["Travel", "Bollywood", "Fitness", "Coffee", "Trekking", "Technology"],
-    photo_url: "",
-  },
-  {
-    id: "2",
-    full_name: "Ananya Patel",
-    age: 22,
-    city: "Bangalore",
-    bio: "Graphic designer, coffee addict, dog lover. If you love art and long conversations, we'll get along perfectly!",
-    interests: ["Art", "Coffee", "Photography", "Music", "Reading", "Yoga"],
-    photo_url: "",
-  },
-  {
-    id: "3",
-    full_name: "Kavya Reddy",
-    age: 26,
-    city: "Hyderabad",
-    bio: "Doctor by day, foodie by night. Biryani > everything else. Loves exploring new restaurants.",
-    interests: ["Cooking", "Travel", "Movies", "Dancing", "Fitness", "Reading"],
-    photo_url: "",
-  },
-  {
-    id: "4",
-    full_name: "Meera Nair",
-    age: 23,
-    city: "Chennai",
-    bio: "Classical dancer and startup enthusiast. Passionate about Indian culture and modern tech.",
-    interests: ["Dancing", "Technology", "Art", "Yoga", "Photography", "Cricket"],
-    photo_url: "",
-  },
-];
-
 const CITIES = [
   "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
   "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow",
@@ -63,11 +25,6 @@ const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase();
-}
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isRealProfile(id: string) {
-  return UUID_REGEX.test(id);
 }
 
 export default function DiscoverPage() {
@@ -83,7 +40,6 @@ export default function DiscoverPage() {
   const [superLikeCount, setSuperLikeCount] = useState(0);
   const [photoError, setPhotoError] = useState(false);
 
-  // Swipe gesture state
   const dragStartX = useRef<number | null>(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const isDragging = useRef(false);
@@ -93,16 +49,17 @@ export default function DiscoverPage() {
   const [filterCity, setFilterCity] = useState("");
   const [filterAgeMin, setFilterAgeMin] = useState(18);
   const [filterAgeMax, setFilterAgeMax] = useState(40);
-  // Applied filters (only change on "Apply")
+  const [filterGender, setFilterGender] = useState("Everyone");
   const [appliedCity, setAppliedCity] = useState("");
   const [appliedAgeMin, setAppliedAgeMin] = useState(18);
   const [appliedAgeMax, setAppliedAgeMax] = useState(40);
+  const [appliedGender, setAppliedGender] = useState("Everyone");
 
   const FREE_LIKES = 10;
   const FREE_SUPER_LIKES = 1;
   const PREMIUM_SUPER_LIKES = 5;
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
-  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40;
+  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40 || appliedGender !== "Everyone";
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -112,6 +69,7 @@ export default function DiscoverPage() {
     city: string,
     ageMin: number,
     ageMax: number,
+    gender: string,
     excludeExtra: string[] = []
   ) => {
     const supabase = createClient();
@@ -142,6 +100,9 @@ export default function DiscoverPage() {
       .limit(20);
 
     if (city) query = query.eq("city", city);
+    if (gender && gender !== "Everyone") {
+      query = query.eq("gender", gender === "Men" ? "Man" : "Woman");
+    }
     if (excludeIds.length > 0) {
       query = query.not("id", "in", `(${excludeIds.join(",")})`);
     }
@@ -154,11 +115,12 @@ export default function DiscoverPage() {
     uid: string,
     city: string,
     ageMin: number,
-    ageMax: number
+    ageMax: number,
+    gender: string
   ) => {
     setLoading(true);
     setHasMore(true);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender);
     setProfiles(data);
     setHasMore(data.length === 20);
     setLoading(false);
@@ -169,12 +131,13 @@ export default function DiscoverPage() {
     city: string,
     ageMin: number,
     ageMax: number,
+    gender: string,
     currentProfiles: Profile[]
   ) => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     const existingIds = currentProfiles.map((p) => p.id);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax, existingIds);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, existingIds);
     if (data.length > 0) {
       setProfiles((prev) => [...prev, ...data]);
       setHasMore(data.length === 20);
@@ -184,7 +147,6 @@ export default function DiscoverPage() {
     setLoadingMore(false);
   }, [fetchProfiles, loadingMore, hasMore]);
 
-  // On mount: get user + like count, then load profiles
   useEffect(() => {
     async function init() {
       const supabase = createClient();
@@ -192,10 +154,9 @@ export default function DiscoverPage() {
       if (!user) return;
       setUserId(user.id);
 
-      // Check real premium status from profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_premium, premium_expires_at")
+        .select("is_premium, premium_expires_at, looking_for")
         .eq("id", user.id)
         .single();
 
@@ -204,7 +165,10 @@ export default function DiscoverPage() {
         (!profile.premium_expires_at || new Date(profile.premium_expires_at) > new Date());
       setIsPremium(premiumActive);
 
-      // Count today's likes and super likes
+      const userGender = profile?.looking_for || "Everyone";
+      setFilterGender(userGender);
+      setAppliedGender(userGender);
+
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
@@ -225,7 +189,7 @@ export default function DiscoverPage() {
         .gte("created_at", todayStart.toISOString());
       if (todaySuperLikes) setSuperLikeCount(todaySuperLikes);
 
-      await loadProfiles(user.id, "", 18, 40);
+      await loadProfiles(user.id, "", 18, 40, userGender);
     }
     init();
   }, [loadProfiles]);
@@ -235,21 +199,24 @@ export default function DiscoverPage() {
     setAppliedCity(filterCity);
     setAppliedAgeMin(filterAgeMin);
     setAppliedAgeMax(filterAgeMax);
+    setAppliedGender(filterGender);
     setShowFilters(false);
     setCurrent(0);
-    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax);
+    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax, filterGender);
   }
 
   function clearFilters() {
     setFilterCity("");
     setFilterAgeMin(18);
     setFilterAgeMax(40);
+    setFilterGender("Everyone");
     setAppliedCity("");
     setAppliedAgeMin(18);
     setAppliedAgeMax(40);
+    setAppliedGender("Everyone");
     setShowFilters(false);
     setCurrent(0);
-    if (userId) loadProfiles(userId, "", 18, 40);
+    if (userId) loadProfiles(userId, "", 18, 40, "Everyone");
   }
 
   async function handleAction(type: "like" | "skip") {
@@ -258,28 +225,24 @@ export default function DiscoverPage() {
 
     if (type === "like" && userId && profiles[current]) {
       const toUserId = profiles[current].id;
+      const supabase = createClient();
+      await supabase.from("likes").insert({ from_user_id: userId, to_user_id: toUserId });
 
-      if (isRealProfile(toUserId)) {
-        const supabase = createClient();
-        await supabase.from("likes").insert({ from_user_id: userId, to_user_id: toUserId });
+      const { data: mutualLike } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("from_user_id", toUserId)
+        .eq("to_user_id", userId)
+        .maybeSingle();
 
-        const { data: mutualLike } = await supabase
-          .from("likes")
-          .select("id")
-          .eq("from_user_id", toUserId)
-          .eq("to_user_id", userId)
-          .maybeSingle();
-
-        if (mutualLike) {
-          setMatchAlert(true);
-          setTimeout(() => setMatchAlert(false), 3000);
-          // Notify the other person about the match
-          fetch("/api/push/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
-          }).catch(() => {});
-        }
+      if (mutualLike) {
+        setMatchAlert(true);
+        setTimeout(() => setMatchAlert(false), 3000);
+        fetch("/api/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+        }).catch(() => {});
       }
       setLikeCount((c) => c + 1);
     }
@@ -290,7 +253,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, profiles);
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, profiles);
         }
         return next;
       });
@@ -303,31 +266,28 @@ export default function DiscoverPage() {
 
     if (userId && profiles[current]) {
       const toUserId = profiles[current].id;
+      const supabase = createClient();
+      await supabase.from("likes").insert({
+        from_user_id: userId,
+        to_user_id: toUserId,
+        super_like: true,
+      });
 
-      if (isRealProfile(toUserId)) {
-        const supabase = createClient();
-        await supabase.from("likes").insert({
-          from_user_id: userId,
-          to_user_id: toUserId,
-          super_like: true,
-        });
+      const { data: mutualLike } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("from_user_id", toUserId)
+        .eq("to_user_id", userId)
+        .maybeSingle();
 
-        const { data: mutualLike } = await supabase
-          .from("likes")
-          .select("id")
-          .eq("from_user_id", toUserId)
-          .eq("to_user_id", userId)
-          .maybeSingle();
-
-        if (mutualLike) {
-          setMatchAlert(true);
-          setTimeout(() => setMatchAlert(false), 3000);
-          fetch("/api/push/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
-          }).catch(() => {});
-        }
+      if (mutualLike) {
+        setMatchAlert(true);
+        setTimeout(() => setMatchAlert(false), 3000);
+        fetch("/api/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+        }).catch(() => {});
       }
 
       setSuperLikeCount((c) => c + 1);
@@ -342,7 +302,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, profiles);
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, profiles);
         }
         return next;
       });
@@ -351,9 +311,8 @@ export default function DiscoverPage() {
 
   const profile = profiles[current];
   const isDone = current >= profiles.length;
-  const isDemo = profile && !isRealProfile(profile.id);
 
-  const SWIPE_THRESHOLD = 80; // px to trigger action
+  const SWIPE_THRESHOLD = 80;
 
   function onPointerDown(e: React.PointerEvent) {
     if (isDone || action) return;
@@ -377,7 +336,6 @@ export default function DiscoverPage() {
     else if (delta < -SWIPE_THRESHOLD) handleAction("skip");
   }
 
-  // Derive visual card tilt from drag
   const swipeRotation = dragDeltaX / 15;
   const swipeOpacity = Math.max(0.6, 1 - Math.abs(dragDeltaX) / 300);
 
@@ -435,6 +393,27 @@ export default function DiscoverPage() {
         {showFilters && (
           <div className="glass rounded-2xl p-4 mb-4">
             <h3 className="text-white font-semibold text-sm mb-4">Filter Profiles</h3>
+
+            {/* Show me */}
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1.5 block">Show me</label>
+              <div className="grid grid-cols-3 gap-2">
+                {["Men", "Women", "Everyone"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setFilterGender(g)}
+                    className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                      filterGender === g
+                        ? "btn-primary text-white"
+                        : "bg-white/5 border border-white/10 text-white/60 hover:border-white/20"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* City */}
             <div className="mb-4">
@@ -506,6 +485,11 @@ export default function DiscoverPage() {
         {/* Active filter chips */}
         {hasActiveFilter && !showFilters && (
           <div className="flex flex-wrap gap-2 mb-4">
+            {appliedGender !== "Everyone" && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
+                {appliedGender}
+              </span>
+            )}
             {appliedCity && (
               <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
                 <MapPin size={10} /> {appliedCity}
@@ -530,31 +514,38 @@ export default function DiscoverPage() {
             <div className="w-8 h-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
           </div>
         ) : isDone ? (
-          <div className="text-center py-20">
-            <Heart size={64} className="text-red-400/30 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-3">
+          <div className="text-center py-16">
+            <div className="w-24 h-24 rounded-full glass flex items-center justify-center mx-auto mb-6">
+              <Heart size={40} className="text-red-400/40" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">
               {hasActiveFilter ? "No profiles match your filters!" : "You've seen everyone!"}
             </h2>
-            <p className="text-white/40 mb-8">
+            <p className="text-white/40 text-sm mb-8">
               {hasActiveFilter
-                ? "Try adjusting your city or age range."
-                : "Check back later for new profiles, or go Premium for priority access."}
+                ? "Try widening your city or age range."
+                : "New people join every day. Check back soon!"}
             </p>
-            {hasActiveFilter ? (
-              <button onClick={clearFilters} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
-                Clear Filters
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  setCurrent(0);
-                  if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax);
-                }}
-                className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
-              >
-                Start Over
-              </button>
-            )}
+            <div className="flex flex-col gap-3 max-w-xs mx-auto">
+              {hasActiveFilter ? (
+                <button onClick={clearFilters} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
+                  Clear Filters
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setCurrent(0);
+                    if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender);
+                  }}
+                  className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
+                >
+                  Start Over
+                </button>
+              )}
+              <a href="/matches" className="px-8 py-3 rounded-full glass text-white/60 text-sm font-medium hover:text-white transition-colors">
+                Browse Your Matches
+              </a>
+            </div>
           </div>
         ) : (
           <>
@@ -581,7 +572,7 @@ export default function DiscoverPage() {
               onPointerCancel={onPointerUp}
             >
               <div
-                className="h-72 flex items-center justify-center relative overflow-hidden"
+                className="h-96 flex items-center justify-center relative overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[current % AVATAR_COLORS.length]}22, ${AVATAR_COLORS[(current + 2) % AVATAR_COLORS.length]}22)` }}
               >
                 {profile.photo_url && !photoError ? (
@@ -617,6 +608,15 @@ export default function DiscoverPage() {
                     SKIP
                   </div>
                 )}
+                {/* Info button — view full profile */}
+                <Link
+                  href={`/profile/${profile.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full glass flex items-center justify-center text-white/70 hover:text-white transition-colors border border-white/20"
+                >
+                  <Info size={16} />
+                </Link>
               </div>
 
               <div className="p-5">
@@ -637,12 +637,6 @@ export default function DiscoverPage() {
                 </div>
               </div>
             </div>
-
-            {isDemo && (
-              <div className="mb-4 px-4 py-2 rounded-xl text-center text-xs text-yellow-400/70 glass border border-yellow-400/10">
-                Sample profile — invite friends to see real matches!
-              </div>
-            )}
 
             {!isPremium && likeCount >= FREE_LIKES ? (
               <div className="glass rounded-2xl p-5 text-center">
