@@ -14,11 +14,29 @@ type Profile = {
   bio: string;
   interests: string[];
   photo_url: string;
+  religion: string;
 };
 
 const CITIES = [
-  "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow",
+  "Agra", "Ahmedabad", "Ajmer", "Allahabad", "Amritsar", "Anand", "Aurangabad",
+  "Bangalore", "Bareilly", "Bharuch", "Bhavnagar", "Bhopal", "Bhubaneswar",
+  "Chandigarh", "Chennai", "Coimbatore",
+  "Dehradun", "Delhi",
+  "Faridabad",
+  "Gandhinagar", "Ghaziabad", "Gurugram", "Guwahati", "Gwalior",
+  "Hyderabad",
+  "Indore",
+  "Jabalpur", "Jaipur", "Jalandhar", "Jammu", "Jamnagar", "Jodhpur", "Junagadh",
+  "Kanpur", "Kochi", "Kolkata", "Kota",
+  "Lucknow", "Ludhiana",
+  "Madurai", "Mangalore", "Meerut", "Mehsana", "Morbi", "Mumbai", "Mysore",
+  "Nadiad", "Nagpur", "Nashik", "Navi Mumbai", "Noida",
+  "Patna", "Porbandar", "Pune",
+  "Raipur", "Rajkot", "Ranchi",
+  "Srinagar", "Surat",
+  "Thiruvananthapuram",
+  "Udaipur",
+  "Vadodara", "Valsad", "Vapi", "Varanasi", "Vijayawada", "Visakhapatnam",
 ];
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
@@ -50,16 +68,18 @@ export default function DiscoverPage() {
   const [filterAgeMin, setFilterAgeMin] = useState(18);
   const [filterAgeMax, setFilterAgeMax] = useState(40);
   const [filterGender, setFilterGender] = useState("Everyone");
+  const [filterReligion, setFilterReligion] = useState("");
   const [appliedCity, setAppliedCity] = useState("");
   const [appliedAgeMin, setAppliedAgeMin] = useState(18);
   const [appliedAgeMax, setAppliedAgeMax] = useState(40);
   const [appliedGender, setAppliedGender] = useState("Everyone");
+  const [appliedReligion, setAppliedReligion] = useState("");
 
   const FREE_LIKES = 10;
   const FREE_SUPER_LIKES = 1;
   const PREMIUM_SUPER_LIKES = 5;
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
-  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40 || appliedGender !== "Everyone";
+  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40 || appliedGender !== "Everyone" || appliedReligion !== "";
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -70,6 +90,7 @@ export default function DiscoverPage() {
     ageMin: number,
     ageMax: number,
     gender: string,
+    religion: string,
     excludeExtra: string[] = []
   ) => {
     const supabase = createClient();
@@ -103,6 +124,7 @@ export default function DiscoverPage() {
     if (gender && gender !== "Everyone") {
       query = query.eq("gender", gender === "Men" ? "Man" : "Woman");
     }
+    if (religion) query = query.eq("religion", religion);
     if (excludeIds.length > 0) {
       query = query.not("id", "in", `(${excludeIds.join(",")})`);
     }
@@ -116,11 +138,12 @@ export default function DiscoverPage() {
     city: string,
     ageMin: number,
     ageMax: number,
-    gender: string
+    gender: string,
+    religion: string
   ) => {
     setLoading(true);
     setHasMore(true);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, religion);
     setProfiles(data);
     setHasMore(data.length === 20);
     setLoading(false);
@@ -132,12 +155,13 @@ export default function DiscoverPage() {
     ageMin: number,
     ageMax: number,
     gender: string,
+    religion: string,
     currentProfiles: Profile[]
   ) => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     const existingIds = currentProfiles.map((p) => p.id);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, existingIds);
+    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, religion, existingIds);
     if (data.length > 0) {
       setProfiles((prev) => [...prev, ...data]);
       setHasMore(data.length === 20);
@@ -189,7 +213,7 @@ export default function DiscoverPage() {
         .gte("created_at", todayStart.toISOString());
       if (todaySuperLikes) setSuperLikeCount(todaySuperLikes);
 
-      await loadProfiles(user.id, "", 18, 40, userGender);
+      await loadProfiles(user.id, "", 18, 40, userGender, "");
     }
     init();
   }, [loadProfiles]);
@@ -200,9 +224,10 @@ export default function DiscoverPage() {
     setAppliedAgeMin(filterAgeMin);
     setAppliedAgeMax(filterAgeMax);
     setAppliedGender(filterGender);
+    setAppliedReligion(filterReligion);
     setShowFilters(false);
     setCurrent(0);
-    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax, filterGender);
+    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax, filterGender, filterReligion);
   }
 
   function clearFilters() {
@@ -210,13 +235,15 @@ export default function DiscoverPage() {
     setFilterAgeMin(18);
     setFilterAgeMax(40);
     setFilterGender("Everyone");
+    setFilterReligion("");
     setAppliedCity("");
     setAppliedAgeMin(18);
     setAppliedAgeMax(40);
     setAppliedGender("Everyone");
+    setAppliedReligion("");
     setShowFilters(false);
     setCurrent(0);
-    if (userId) loadProfiles(userId, "", 18, 40, "Everyone");
+    if (userId) loadProfiles(userId, "", 18, 40, "Everyone", "");
   }
 
   async function handleAction(type: "like" | "skip") {
@@ -253,7 +280,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, profiles);
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
         }
         return next;
       });
@@ -302,7 +329,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, profiles);
+          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
         }
         return next;
       });
@@ -415,6 +442,24 @@ export default function DiscoverPage() {
               </div>
             </div>
 
+            {/* Religion */}
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1.5 block">Religion</label>
+              <div className="relative">
+                <select
+                  value={filterReligion}
+                  onChange={(e) => setFilterReligion(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none"
+                >
+                  <option value="" className="bg-gray-900">Any religion</option>
+                  {["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi", "Swaminarayan", "Other"].map((r) => (
+                    <option key={r} value={r} className="bg-gray-900">{r}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+              </div>
+            </div>
+
             {/* City */}
             <div className="mb-4">
               <label className="text-white/50 text-xs mb-1.5 block">City</label>
@@ -490,6 +535,11 @@ export default function DiscoverPage() {
                 {appliedGender}
               </span>
             )}
+            {appliedReligion && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
+                {appliedReligion}
+              </span>
+            )}
             {appliedCity && (
               <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
                 <MapPin size={10} /> {appliedCity}
@@ -535,7 +585,7 @@ export default function DiscoverPage() {
                 <button
                   onClick={() => {
                     setCurrent(0);
-                    if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender);
+                    if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion);
                   }}
                   className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
                 >
@@ -620,12 +670,18 @@ export default function DiscoverPage() {
               </div>
 
               <div className="p-5">
-                <h2 className="text-2xl font-bold text-white mb-1">
+                <h2 className="text-2xl font-bold text-white mb-2">
                   {profile.full_name}, <span className="gradient-text">{profile.age}</span>
                 </h2>
-                <div className="flex items-center gap-1 text-white/40 text-sm mb-3">
-                  <MapPin size={14} />
-                  <span>{profile.city}</span>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs glass text-white/60 border border-white/10">
+                    <MapPin size={11} /> {profile.city}
+                  </span>
+                  {profile.religion && (
+                    <span className="px-2.5 py-1 rounded-full text-xs glass text-white/60 border border-white/10">
+                      {profile.religion}
+                    </span>
+                  )}
                 </div>
                 <p className="text-white/60 text-sm leading-relaxed mb-4">{profile.bio}</p>
                 <div className="flex flex-wrap gap-2">

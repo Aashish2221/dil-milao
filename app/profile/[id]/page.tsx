@@ -13,6 +13,7 @@ type Profile = {
   interests: string[];
   photo_url: string;
   gender: string;
+  religion: string;
 };
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
@@ -33,7 +34,7 @@ export default function UserProfilePage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, age, city, bio, interests, photo_url, gender")
+        .select("full_name, age, city, bio, interests, photo_url, gender, religion")
         .eq("id", id)
         .single();
       setProfile(data);
@@ -133,6 +134,12 @@ export default function UserProfilePage() {
             <div className="flex items-center justify-between">
               <span className="text-white/40 text-sm">Gender</span>
               <span className="text-white/70 text-sm">{profile.gender}</span>
+            </div>
+          )}
+          {profile.religion && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/40 text-sm">Religion</span>
+              <span className="text-white/70 text-sm">{profile.religion}</span>
             </div>
           )}
           <div className="flex items-center justify-between">

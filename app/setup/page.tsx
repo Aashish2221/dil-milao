@@ -11,7 +11,27 @@ const INTERESTS = [
   "Movies", "Trekking", "Coffee", "Technology", "Fashion", "Spirituality",
 ];
 
-const CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow"];
+const CITIES = [
+  "Agra", "Ahmedabad", "Ajmer", "Allahabad", "Amritsar", "Anand", "Aurangabad",
+  "Bangalore", "Bareilly", "Bharuch", "Bhavnagar", "Bhopal", "Bhubaneswar",
+  "Chandigarh", "Chennai", "Coimbatore",
+  "Dehradun", "Delhi",
+  "Faridabad",
+  "Gandhinagar", "Ghaziabad", "Gurugram", "Guwahati", "Gwalior",
+  "Hyderabad",
+  "Indore",
+  "Jabalpur", "Jaipur", "Jalandhar", "Jammu", "Jamnagar", "Jodhpur", "Junagadh",
+  "Kanpur", "Kochi", "Kolkata", "Kota",
+  "Lucknow", "Ludhiana",
+  "Madurai", "Mangalore", "Meerut", "Mehsana", "Morbi", "Mumbai", "Mysore",
+  "Nadiad", "Nagpur", "Nashik", "Navi Mumbai", "Noida",
+  "Patna", "Porbandar", "Pune",
+  "Raipur", "Rajkot", "Ranchi",
+  "Srinagar", "Surat",
+  "Thiruvananthapuram",
+  "Udaipur",
+  "Vadodara", "Valsad", "Vapi", "Varanasi", "Vijayawada", "Visakhapatnam",
+];
 
 export default function SetupPage() {
   const router = useRouter();
@@ -29,6 +49,7 @@ export default function SetupPage() {
     age: "",
     gender: "",
     looking_for: "Everyone",
+    religion: "",
     city: "",
     interests: [] as string[],
     photo_url: "",
@@ -43,7 +64,7 @@ export default function SetupPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, bio, age, gender, looking_for, city, interests, photo_url")
+        .select("full_name, bio, age, gender, looking_for, religion, city, interests, photo_url")
         .eq("id", user.id)
         .single();
 
@@ -55,6 +76,7 @@ export default function SetupPage() {
           age: profile.age ? String(profile.age) : "",
           gender: profile.gender || "",
           looking_for: profile.looking_for || "Everyone",
+          religion: profile.religion || "",
           city: profile.city || "",
           interests: profile.interests || [],
           photo_url: profile.photo_url || "",
@@ -348,6 +370,26 @@ export default function SetupPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
                 />
                 <p className="text-white/20 text-xs mt-1">{form.bio.length}/200</p>
+              </div>
+
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Religion <span className="text-white/30">(optional)</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi", "Swaminarayan", "Other"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setForm({ ...form, religion: form.religion === r ? "" : r })}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        form.religion === r
+                          ? "btn-primary text-white"
+                          : "bg-white/5 border border-white/10 text-white/60 hover:border-white/20"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex gap-3">
