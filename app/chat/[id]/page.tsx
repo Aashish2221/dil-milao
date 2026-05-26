@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX, Flag } from "lucide-react";
+import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX, Flag, Crown } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import ReportModal from "@/components/ReportModal";
@@ -29,6 +29,10 @@ export default function ChatPage() {
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [myMsgCount, setMyMsgCount] = useState(0);
+
+  const FREE_MSG_LIMIT = 3;
   const menuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +44,17 @@ export default function ChatPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setMyUserId(user.id);
+
+      // Check premium status
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("is_premium, premium_expires_at")
+        .eq("id", user.id)
+        .single();
+      const premiumActive =
+        myProfile?.is_premium === true &&
+        (!myProfile.premium_expires_at || new Date(myProfile.premium_expires_at) > new Date());
+      setIsPremium(premiumActive);
 
       // Load the other person's name and photo
       const { data: profile } = await supabase
@@ -62,7 +77,9 @@ export default function ChatPage() {
         )
         .order("created_at", { ascending: true });
 
-      setMessages((data || []).map((m) => ({ ...m, is_me: m.sender_id === user.id })));
+      const mapped = (data || []).map((m) => ({ ...m, is_me: m.sender_id === user.id }));
+      setMessages(mapped);
+      setMyMsgCount(mapped.filter((m) => m.is_me).length);
       setLoading(false);
 
       // Mark all received messages from the other user as read
@@ -200,6 +217,7 @@ export default function ChatPage() {
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() || !myUserId) return;
+    if (!isPremium && myMsgCount >= FREE_MSG_LIMIT) return;
 
     const content = newMessage.trim();
     setNewMessage("");
@@ -222,6 +240,7 @@ export default function ChatPage() {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert("Failed to send message. Please try again.");
     } else {
+      setMyMsgCount((c) => c + 1);
       fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -354,25 +373,48 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={sendMessage}
-        className="glass border-t border-white/5 p-4 flex items-center gap-3"
-      >
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-full px-5 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/40 text-sm transition-colors"
-        />
-        <button
-          type="submit"
-          disabled={!newMessage.trim()}
-          className="btn-primary w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-30"
-        >
-          <Send size={18} className="text-white" />
-        </button>
-      </form>
+      <div className="glass border-t border-white/5">
+        {/* Free user limit banner */}
+        {!isPremium && myMsgCount >= FREE_MSG_LIMIT ? (
+          <div className="p-4 text-center">
+            <Crown size={24} className="text-yellow-400 mx-auto mb-2" />
+            <p className="text-white font-semibold text-sm mb-1">Message limit reached</p>
+            <p className="text-white/40 text-xs mb-3">
+              Free users can send {FREE_MSG_LIMIT} messages per conversation. Upgrade to chat freely!
+            </p>
+            <a
+              href="/premium"
+              className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white text-sm font-semibold"
+            >
+              <Crown size={14} /> Go Premium — ₹199/mo
+            </a>
+          </div>
+        ) : (
+          <form onSubmit={sendMessage} className="p-4 flex items-center gap-3">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-full px-5 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/40 text-sm transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!newMessage.trim()}
+              className="btn-primary w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-30"
+            >
+              <Send size={18} className="text-white" />
+            </button>
+          </form>
+        )}
+        {/* Counter for free users */}
+        {!isPremium && myMsgCount < FREE_MSG_LIMIT && (
+          <p className="text-center text-white/20 text-[10px] pb-2">
+            {FREE_MSG_LIMIT - myMsgCount} free message{FREE_MSG_LIMIT - myMsgCount !== 1 ? "s" : ""} remaining —{" "}
+            <a href="/premium" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">Go Premium</a> for unlimited
+          </p>
+        )}
+      </div>
     </div>
   );
 }

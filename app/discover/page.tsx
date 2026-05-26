@@ -75,7 +75,7 @@ export default function DiscoverPage() {
   const [appliedGender, setAppliedGender] = useState("Everyone");
   const [appliedReligion, setAppliedReligion] = useState("");
 
-  const FREE_LIKES = 10;
+  const FREE_LIKES = 3;
   const FREE_SUPER_LIKES = 1;
   const PREMIUM_SUPER_LIKES = 5;
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
@@ -390,8 +390,8 @@ export default function DiscoverPage() {
             <p className="text-white/40 text-sm">Find your perfect match</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-white/40 text-xs">Likes used</div>
+            <Link href="/my-likes" className="text-right hover:opacity-80 transition-opacity">
+              <div className="text-white/40 text-xs">Likes sent</div>
               <div className="text-sm font-semibold">
                 <span className="gradient-text">{likeCount}</span>
                 <span className="text-white/30">/{isPremium ? "∞" : FREE_LIKES}</span>
@@ -399,7 +399,7 @@ export default function DiscoverPage() {
               <div className="text-yellow-400/70 text-[10px]">
                 ⭐ {superLikeCount}/{superLikeLimit} super
               </div>
-            </div>
+            </Link>
             <button
               onClick={() => setShowFilters((o) => !o)}
               className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all ${

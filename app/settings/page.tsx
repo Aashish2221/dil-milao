@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase";
@@ -12,6 +12,33 @@ export default function SettingsPage() {
   const [pwStatus, setPwStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Load saved notification preferences
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("notif_matches, notif_messages, notif_likes")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        if (data.notif_matches != null) setNotifMatches(data.notif_matches);
+        if (data.notif_messages != null) setNotifMessages(data.notif_messages);
+        if (data.notif_likes != null) setNotifLikes(data.notif_likes);
+      }
+    }
+    load();
+  }, []);
+
+  async function saveNotifPref(key: string, value: boolean) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("profiles").update({ [key]: value }).eq("id", user.id);
+  }
 
   async function sendPasswordReset() {
     setPwStatus("sending");
@@ -29,8 +56,6 @@ export default function SettingsPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setDeleting(false); return; }
-
-    // Delete profile (cascades to likes, matches, messages via FK)
     await supabase.from("profiles").delete().eq("id", user.id);
     await supabase.auth.signOut();
     router.push("/");
@@ -42,9 +67,22 @@ export default function SettingsPage() {
     router.push("/");
   }
 
+  function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+    return (
+      <button
+        onClick={() => onChange(!value)}
+        className={`w-11 h-6 rounded-full transition-all relative ${value ? "btn-primary" : "bg-white/10"}`}
+      >
+        <span
+          className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+          style={{ left: value ? "calc(100% - 22px)" : "2px" }}
+        />
+      </button>
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "#0a0a0f" }}>
-      {/* Header */}
       <header className="glass sticky top-0 z-50 flex items-center gap-3 px-4 py-3">
         <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
           <ArrowLeft size={22} />
@@ -60,24 +98,18 @@ export default function SettingsPage() {
             <Bell size={18} className="text-white/40" />
             <span className="text-white font-medium">Notifications</span>
           </div>
-          {[
-            { label: "New matches", value: notifMatches, set: setNotifMatches },
-            { label: "New messages", value: notifMessages, set: setNotifMessages },
-            { label: "Someone liked you", value: notifLikes, set: setNotifLikes },
-          ].map(({ label, value, set }) => (
-            <div key={label} className="flex items-center justify-between px-5 py-3.5 border-b border-white/5 last:border-0">
-              <span className="text-white/60 text-sm">{label}</span>
-              <button
-                onClick={() => set((v) => !v)}
-                className={`w-11 h-6 rounded-full transition-all relative ${value ? "btn-primary" : "bg-white/10"}`}
-              >
-                <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${value ? "left-5.5 translate-x-0.5" : "left-0.5"}`}
-                  style={{ left: value ? "calc(100% - 22px)" : "2px" }}
-                />
-              </button>
-            </div>
-          ))}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
+            <span className="text-white/60 text-sm">New matches</span>
+            <Toggle value={notifMatches} onChange={(v) => { setNotifMatches(v); saveNotifPref("notif_matches", v); }} />
+          </div>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
+            <span className="text-white/60 text-sm">New messages</span>
+            <Toggle value={notifMessages} onChange={(v) => { setNotifMessages(v); saveNotifPref("notif_messages", v); }} />
+          </div>
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <span className="text-white/60 text-sm">Someone liked you</span>
+            <Toggle value={notifLikes} onChange={(v) => { setNotifLikes(v); saveNotifPref("notif_likes", v); }} />
+          </div>
         </section>
 
         {/* Account */}
@@ -87,7 +119,6 @@ export default function SettingsPage() {
             <span className="text-white font-medium">Account</span>
           </div>
 
-          {/* Change password */}
           <div className="px-5 py-4 border-b border-white/5">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-3">
@@ -97,10 +128,7 @@ export default function SettingsPage() {
               <ChevronRight size={16} className="text-white/20" />
             </div>
             {pwStatus === "idle" && (
-              <button
-                onClick={sendPasswordReset}
-                className="ml-7 text-xs text-red-400/70 hover:text-red-400 transition-colors"
-              >
+              <button onClick={sendPasswordReset} className="ml-7 text-xs text-red-400/70 hover:text-red-400 transition-colors">
                 Send reset link to my email
               </button>
             )}
@@ -109,7 +137,6 @@ export default function SettingsPage() {
             {pwStatus === "error" && <p className="ml-7 text-xs text-red-400/70">Failed to send. Try again.</p>}
           </div>
 
-          {/* Logout */}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-5 py-4 text-left border-b border-white/5 hover:bg-white/5 transition-colors"
@@ -118,7 +145,6 @@ export default function SettingsPage() {
             <span className="text-white/70 text-sm">Log Out</span>
           </button>
 
-          {/* Delete account */}
           {!deleteConfirm ? (
             <button
               onClick={() => setDeleteConfirm(true)}
@@ -142,7 +168,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deleting}
-                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-all"
+                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #dc2626, #b91c1c)" }}
                 >
                   {deleting ? "Deleting…" : "Yes, Delete"}

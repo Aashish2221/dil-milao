@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
 
@@ -14,6 +15,9 @@ type Profile = {
   interests: string[];
   email: string;
   photo_url: string;
+  religion: string;
+  looking_for: string;
+  gender: string;
 };
 
 type Stats = {
@@ -51,6 +55,9 @@ export default function ProfilePage() {
           interests: [],
           email: user.email || "",
           photo_url: "",
+          religion: "",
+          looking_for: "",
+          gender: "",
         });
       }
 
@@ -134,16 +141,20 @@ export default function ProfilePage() {
 
         {/* Real stats from Supabase */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          {[
-            { label: "Matches", value: stats.matches, icon: <Heart size={16} fill="#ff6b6b" className="text-red-400" /> },
-            { label: "Likes Sent", value: stats.likesSent, icon: <Zap size={16} className="text-yellow-400" /> },
-          ].map((s) => (
-            <div key={s.label} className="glass rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-1">{s.icon}</div>
-              <div className="text-white font-bold text-2xl">{s.value}</div>
-              <div className="text-white/30 text-xs">{s.label}</div>
+          <Link href="/matches" className="glass rounded-xl p-4 text-center hover:border-red-400/30 transition-colors">
+            <div className="flex justify-center mb-1">
+              <Heart size={16} fill="#ff6b6b" className="text-red-400" />
             </div>
-          ))}
+            <div className="text-white font-bold text-2xl">{stats.matches}</div>
+            <div className="text-white/30 text-xs">Matches</div>
+          </Link>
+          <Link href="/my-likes" className="glass rounded-xl p-4 text-center hover:border-yellow-400/30 transition-colors">
+            <div className="flex justify-center mb-1">
+              <Zap size={16} className="text-yellow-400" />
+            </div>
+            <div className="text-white font-bold text-2xl">{stats.likesSent}</div>
+            <div className="text-white/30 text-xs">Likes Sent</div>
+          </Link>
         </div>
 
         {/* Bio */}
@@ -153,6 +164,30 @@ export default function ProfilePage() {
             {profile?.bio || "No bio yet. Tap Edit Profile to add one!"}
           </p>
         </div>
+
+        {/* Details row */}
+        {(profile?.religion || profile?.looking_for || profile?.gender) && (
+          <div className="glass rounded-2xl p-5 mb-4 space-y-3">
+            {profile.gender && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-sm">Gender</span>
+                <span className="text-white/70 text-sm">{profile.gender}</span>
+              </div>
+            )}
+            {profile.religion && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-sm">Religion</span>
+                <span className="text-white/70 text-sm">{profile.religion}</span>
+              </div>
+            )}
+            {profile.looking_for && profile.looking_for !== "Everyone" && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-sm">Looking for</span>
+                <span className="text-white/70 text-sm">{profile.looking_for}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Interests */}
         {profile?.interests && profile.interests.length > 0 && (
