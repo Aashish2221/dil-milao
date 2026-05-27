@@ -52,7 +52,7 @@ const PLANS = [
       { text: "Priority support", included: false },
     ],
     cta: "Get Gold — ₹199/mo",
-    ctaClass: "bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold",
+    ctaClass: "bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold cursor-pointer hover:opacity-90 transition-all",
   },
   {
     id: "platinum",
@@ -278,7 +278,7 @@ export default function PremiumPage() {
         {/* Trial offer — only for users who haven't tried premium yet */}
         {!isPremium && !trialUsed && (
           <div
-            className="rounded-2xl p-5 mb-6 relative overflow-hidden"
+            className="rounded-2xl px-5 pb-5 pt-7 mb-6 relative"
             style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.15), rgba(238,90,36,0.15))", border: "1px solid rgba(255,107,107,0.4)" }}
           >
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -341,7 +341,7 @@ export default function PremiumPage() {
           {PLANS.map((plan) => (
             <div
               key={plan.id}
-              className="rounded-2xl p-5 relative"
+              className={`rounded-2xl px-5 pb-5 relative ${plan.badge ? "pt-7" : "pt-5"}`}
               style={{ background: plan.color, border: `1px solid ${plan.border}` }}
             >
               {plan.badge && (
