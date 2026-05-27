@@ -219,6 +219,18 @@ export default function LikedYouPage() {
     setLikers((prev) => prev.filter((l) => l.id !== liker.id));
     setMatchAlert(liker.full_name.split(" ")[0]);
     setTimeout(() => setMatchAlert(null), 3000);
+
+    // Notify the other person about the match
+    fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to_user_id: liker.id,
+        title: "New Match! 💕",
+        body: "Someone liked you back on Dil Milao!",
+        url: "/matches",
+      }),
+    }).catch(() => {});
   }
 
   function handlePass(likerId: string) {

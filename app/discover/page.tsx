@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown, Info } from "lucide-react";
+import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown, Info, MoreVertical, Flag, ShieldX } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import ReportModal from "@/components/ReportModal";
 import { createClient } from "@/lib/supabase";
 import { STATES, getDistricts } from "@/lib/india-data";
 
@@ -39,6 +40,9 @@ export default function DiscoverPage() {
   const [superLikeAlert, setSuperLikeAlert] = useState(false);
   const [superLikeCount, setSuperLikeCount] = useState(0);
   const [photoError, setPhotoError] = useState(false);
+  const [cardMenuOpen, setCardMenuOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const cardMenuRef = useRef<HTMLDivElement>(null);
 
   const dragStartX = useRef<number | null>(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
@@ -162,6 +166,14 @@ export default function DiscoverPage() {
   }, [fetchProfiles, loadingMore, hasMore]);
 
   useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) setCardMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     async function init() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -237,6 +249,16 @@ export default function DiscoverPage() {
     setShowFilters(false);
     setCurrent(0);
     if (userId) loadProfiles(userId, "", "", 18, 40, "Everyone", "");
+  }
+
+  async function handleBlockProfile(profileId: string) {
+    if (!userId) return;
+    setCardMenuOpen(false);
+    const supabase = createClient();
+    await supabase.from("blocks").insert({ blocker_id: userId, blocked_id: profileId });
+    // Skip to next profile
+    setCurrent((c) => c + 1);
+    setPhotoError(false);
   }
 
   async function handleAction(type: "like" | "skip") {
@@ -362,6 +384,15 @@ export default function DiscoverPage() {
   return (
     <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
       <Navbar />
+
+      {reportTarget && (
+        <ReportModal
+          reportedId={reportTarget.id}
+          reportedName={reportTarget.name}
+          onClose={() => setReportTarget(null)}
+          onReported={() => { setReportTarget(null); setCurrent((c) => c + 1); }}
+        />
+      )}
 
       {matchAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 btn-primary px-6 py-3 rounded-full text-white font-bold flex items-center gap-2 shadow-2xl">
@@ -686,6 +717,40 @@ export default function DiscoverPage() {
                 >
                   <Info size={16} />
                 </Link>
+
+                {/* 3-dot menu — report/block */}
+                <div
+                  className="absolute top-3 right-3 z-10"
+                  ref={cardMenuRef}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => setCardMenuOpen((o) => !o)}
+                    className="w-9 h-9 rounded-full glass flex items-center justify-center text-white/50 hover:text-white/80 transition-colors border border-white/10"
+                  >
+                    <MoreVertical size={15} />
+                  </button>
+                  {cardMenuOpen && (
+                    <div
+                      className="absolute right-0 top-11 rounded-xl overflow-hidden shadow-2xl min-w-[145px]"
+                      style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", zIndex: 60 }}
+                    >
+                      <button
+                        onClick={() => { setCardMenuOpen(false); setReportTarget({ id: profile.id, name: profile.full_name }); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-white/50 text-sm hover:bg-white/5 transition-colors"
+                      >
+                        <Flag size={13} /> Report
+                      </button>
+                      <button
+                        onClick={() => handleBlockProfile(profile.id)}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-red-400 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+                      >
+                        <ShieldX size={13} /> Block
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="p-5">

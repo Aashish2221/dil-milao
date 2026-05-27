@@ -20,3 +20,7 @@ alter table profiles
 alter table profiles
   add column if not exists razorpay_subscription_id text,
   add column if not exists subscription_status text default 'none';
+
+-- Add boost credits
+alter table profiles
+  add column if not exists boost_credits integer default 0;

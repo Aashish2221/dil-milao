@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Heart, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Heart, MoreVertical, ShieldX, Flag } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
+import ReportModal from "@/components/ReportModal";
 
 type Profile = {
   full_name: string;
@@ -29,20 +30,45 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [imgErr, setImgErr] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, age, city, state, bio, interests, photo_url, gender, religion")
-        .eq("id", id)
-        .single();
+      const [{ data: userData }, { data }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+          .from("profiles")
+          .select("full_name, age, city, state, bio, interests, photo_url, gender, religion")
+          .eq("id", id)
+          .single(),
+      ]);
+      setMyUserId(userData.user?.id ?? null);
       setProfile(data);
       setLoading(false);
     }
     load();
   }, [id]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleBlock() {
+    if (!myUserId || !id) return;
+    if (!confirm("Block this person? They won't appear in your feed and can't contact you.")) return;
+    setMenuOpen(false);
+    const supabase = createClient();
+    await supabase.from("blocks").insert({ blocker_id: myUserId, blocked_id: id });
+    router.back();
+  }
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#0a0a0f" }}>
@@ -57,15 +83,55 @@ export default function UserProfilePage() {
   );
 
   const initials = getInitials(profile.full_name || "?");
+  const isOwnProfile = myUserId === id;
 
   return (
     <div className="min-h-screen pb-8" style={{ background: "#0a0a0f" }}>
+      {showReport && (
+        <ReportModal
+          reportedId={id as string}
+          reportedName={profile.full_name}
+          onClose={() => setShowReport(false)}
+          onReported={() => router.back()}
+        />
+      )}
+
       {/* Header */}
       <header className="glass sticky top-0 z-50 flex items-center gap-3 px-4 py-3">
         <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-white font-semibold">{profile.full_name}</h1>
+        <h1 className="text-white font-semibold flex-1">{profile.full_name}</h1>
+
+        {!isOwnProfile && (
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
+            >
+              <MoreVertical size={18} />
+            </button>
+            {menuOpen && (
+              <div
+                className="absolute right-0 top-11 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[150px]"
+                style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <button
+                  onClick={() => { setMenuOpen(false); setShowReport(true); }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-white/50 text-sm hover:bg-white/5 transition-colors"
+                >
+                  <Flag size={14} /> Report
+                </button>
+                <button
+                  onClick={handleBlock}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-red-400 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+                >
+                  <ShieldX size={14} /> Block
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       <div className="max-w-md mx-auto px-4 pt-4">

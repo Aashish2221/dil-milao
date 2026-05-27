@@ -1,6 +1,60 @@
 "use client";
 import Link from "next/link";
-import { Heart, Star, Shield, Zap, Users, MessageCircle } from "lucide-react";
+import { Heart, Star, Shield, Zap, Users, MessageCircle, MapPin, Check } from "lucide-react";
+
+const TESTIMONIALS = [
+  {
+    name: "Priya S.",
+    city: "Pune",
+    text: "Met my now-boyfriend here in just 2 weeks. Genuine profiles, no fake bots!",
+    rating: 5,
+  },
+  {
+    name: "Rahul M.",
+    city: "Bangalore",
+    text: "Love the filter by state — found someone from my hometown. We're meeting next month!",
+    rating: 5,
+  },
+  {
+    name: "Ananya K.",
+    city: "Hyderabad",
+    text: "Finally an Indian dating app that respects privacy and values. 10/10 would recommend.",
+    rating: 5,
+  },
+];
+
+const FEATURES = [
+  {
+    icon: <Shield size={32} className="text-red-400" />,
+    title: "Verified Profiles",
+    desc: "Phone + photo verification so you meet real people, not fake accounts.",
+  },
+  {
+    icon: <Heart size={32} className="text-red-400" fill="#ff6b6b" />,
+    title: "Smart Matching",
+    desc: "Filter by state, city, religion, age and interests — not just looks.",
+  },
+  {
+    icon: <MessageCircle size={32} className="text-red-400" />,
+    title: "Private Chat",
+    desc: "Chat only when both of you match. Safe, private, and fun messaging.",
+  },
+  {
+    icon: <Users size={32} className="text-red-400" />,
+    title: "Indian Community",
+    desc: "Built specifically for young Indians who understand our culture and values.",
+  },
+  {
+    icon: <Zap size={32} className="text-red-400" />,
+    title: "Boost Feature",
+    desc: "Get 10x more visibility for just ₹49. Appear at the top of everyone's feed.",
+  },
+  {
+    icon: <Star size={32} className="text-red-400" />,
+    title: "Premium Perks",
+    desc: "See who liked you, unlimited swipes, and priority support from ₹199/month.",
+  },
+];
 
 export default function LandingPage() {
   return (
@@ -21,8 +75,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="text-center px-6 pt-20 pb-24 fade-in">
+      {/* Hero */}
+      <section className="text-center px-6 pt-20 pb-12 fade-in">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-orange-300 mb-8">
           <Zap size={14} />
           India&apos;s fastest growing dating app
@@ -44,6 +98,39 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="text-white/30 text-sm mt-5">No credit card needed • Free forever</p>
+      </section>
+
+      {/* Floating profile cards */}
+      <section className="px-6 pb-16 overflow-hidden">
+        <div className="max-w-sm mx-auto flex gap-4 justify-center items-end">
+          {[
+            { name: "Priya, 23", city: "Mumbai", color: "#ff6b6b", rotate: "-4deg", mt: "0px" },
+            { name: "Amit, 26", city: "Delhi", color: "#f9ca24", rotate: "0deg", mt: "-20px" },
+            { name: "Neha, 24", city: "Bangalore", color: "#6b9eff", rotate: "4deg", mt: "0px" },
+          ].map((card) => (
+            <div
+              key={card.name}
+              className="profile-card rounded-2xl p-4 flex-1 text-center"
+              style={{ transform: `rotate(${card.rotate})`, marginTop: card.mt }}
+            >
+              <div
+                className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center text-xl font-bold text-white"
+                style={{ background: `linear-gradient(135deg, ${card.color}88, ${card.color}44)`, border: `2px solid ${card.color}66` }}
+              >
+                {card.name[0]}
+              </div>
+              <p className="text-white text-xs font-semibold">{card.name}</p>
+              <p className="text-white/40 text-xs flex items-center justify-center gap-0.5 mt-0.5">
+                <MapPin size={9} />{card.city}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="text-center mt-6">
+          <div className="inline-flex items-center gap-2 btn-primary px-5 py-2.5 rounded-full text-sm font-semibold text-white">
+            <Heart size={14} fill="white" /> 3 new matches today!
+          </div>
+        </div>
       </section>
 
       {/* Stats */}
@@ -69,38 +156,7 @@ export default function LandingPage() {
             Why <span className="gradient-text">Dil Milao?</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <Shield size={32} className="text-red-400" />,
-                title: "Verified Profiles",
-                desc: "Phone + photo verification so you meet real people, not fake accounts.",
-              },
-              {
-                icon: <Heart size={32} className="text-red-400" fill="#ff6b6b" />,
-                title: "Smart Matching",
-                desc: "Our AI matches you by interests, location, and compatibility — not just looks.",
-              },
-              {
-                icon: <MessageCircle size={32} className="text-red-400" />,
-                title: "Private Chat",
-                desc: "Chat only when both of you match. Safe, private, and fun messaging.",
-              },
-              {
-                icon: <Users size={32} className="text-red-400" />,
-                title: "Indian Community",
-                desc: "Built specifically for young Indians. Understand our culture and values.",
-              },
-              {
-                icon: <Zap size={32} className="text-red-400" />,
-                title: "Boost Feature",
-                desc: "Get 10x more visibility for just ₹49. Appear at the top of feeds.",
-              },
-              {
-                icon: <Star size={32} className="text-red-400" />,
-                title: "Premium Perks",
-                desc: "See who liked you, unlimited swipes, and priority support from ₹199/month.",
-              },
-            ].map((f) => (
+            {FEATURES.map((f) => (
               <div key={f.title} className="profile-card rounded-2xl p-6">
                 <div className="mb-4">{f.icon}</div>
                 <h3 className="text-white font-semibold text-lg mb-2">{f.title}</h3>
@@ -135,6 +191,68 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="px-6 pb-24">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-14">
+            Real <span className="gradient-text">Love Stories</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className="profile-card rounded-2xl p-6 flex flex-col gap-3">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: t.rating }).map((_, i) => (
+                    <Star key={i} size={14} className="text-yellow-400" fill="#facc15" />
+                  ))}
+                </div>
+                <p className="text-white/70 text-sm leading-relaxed">&ldquo;{t.text}&rdquo;</p>
+                <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
+                  <div className="w-8 h-8 rounded-full btn-primary flex items-center justify-center text-xs font-bold text-white">
+                    {t.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">{t.name}</p>
+                    <p className="text-white/40 text-xs flex items-center gap-0.5">
+                      <MapPin size={9} />{t.city}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Premium teaser */}
+      <section className="px-6 pb-24">
+        <div className="max-w-2xl mx-auto" style={{ background: "linear-gradient(145deg, #1a1a2e, #16213e)", border: "1px solid rgba(249,202,36,0.25)", borderRadius: "1.5rem", padding: "2.5rem 2rem" }}>
+          <h2 className="text-2xl md:text-3xl font-bold text-white text-center mb-6">
+            Start with <span style={{ color: "#f9ca24" }}>₹5 Trial</span>
+          </h2>
+          <div className="space-y-3 mb-8">
+            {[
+              "See exactly who liked your profile",
+              "Unlimited swipes every day",
+              "Super likes to stand out",
+              "Boost visibility 10x with Boost credits",
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(249,202,36,0.2)", border: "1px solid rgba(249,202,36,0.4)" }}>
+                  <Check size={11} style={{ color: "#f9ca24" }} />
+                </div>
+                <span className="text-white/70 text-sm">{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-center">
+            <Link href="/signup" className="btn-primary px-8 py-3 rounded-full text-white font-bold inline-flex items-center gap-2">
+              Try Premium — ₹5 for 3 days
+            </Link>
+            <p className="text-white/30 text-xs mt-3">No auto-renewal. Cancel anytime.</p>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="px-6 pb-24 text-center">
         <div className="max-w-2xl mx-auto glass rounded-3xl p-12">
@@ -150,8 +268,19 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 px-6 py-8 text-center text-white/30 text-sm">
-        <p>© 2026 Dil Milao. Made with love for India.</p>
+      <footer className="border-t border-white/5 px-6 py-10">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-white/30 text-sm">
+          <div className="flex items-center gap-2">
+            <Heart size={16} className="text-red-400" fill="#ff6b6b" />
+            <span className="font-semibold text-white/50">Dil Milao</span>
+          </div>
+          <div className="flex gap-6">
+            <Link href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</Link>
+            <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
+            <Link href="/login" className="hover:text-white/60 transition-colors">Login</Link>
+          </div>
+          <p>© 2026 Dil Milao. Made with ❤️ for India.</p>
+        </div>
       </footer>
     </div>
   );
