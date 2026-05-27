@@ -6,6 +6,10 @@ alter table profiles
 alter table profiles
   add column if not exists religion text;
 
+-- Add state (Indian state) to profiles
+alter table profiles
+  add column if not exists state text;
+
 -- Add notification preferences to profiles
 alter table profiles
   add column if not exists notif_matches boolean default true,

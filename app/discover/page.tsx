@@ -5,39 +5,21 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
+import { STATES, getDistricts } from "@/lib/india-data";
+
+const PRESET_RELIGIONS = ["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi", "Swaminarayan", "Other"];
 
 type Profile = {
   id: string;
   full_name: string;
   age: number;
   city: string;
+  state: string;
   bio: string;
   interests: string[];
   photo_url: string;
   religion: string;
 };
-
-const CITIES = [
-  "Agra", "Ahmedabad", "Ajmer", "Allahabad", "Amritsar", "Anand", "Aurangabad",
-  "Bangalore", "Bareilly", "Bharuch", "Bhavnagar", "Bhopal", "Bhubaneswar",
-  "Chandigarh", "Chennai", "Coimbatore",
-  "Dehradun", "Delhi",
-  "Faridabad",
-  "Gandhinagar", "Ghaziabad", "Gurugram", "Guwahati", "Gwalior",
-  "Hyderabad",
-  "Indore",
-  "Jabalpur", "Jaipur", "Jalandhar", "Jammu", "Jamnagar", "Jodhpur", "Junagadh",
-  "Kanpur", "Kochi", "Kolkata", "Kota",
-  "Lucknow", "Ludhiana",
-  "Madurai", "Mangalore", "Meerut", "Mehsana", "Morbi", "Mumbai", "Mysore",
-  "Nadiad", "Nagpur", "Nashik", "Navi Mumbai", "Noida",
-  "Patna", "Porbandar", "Pune",
-  "Raipur", "Rajkot", "Ranchi",
-  "Srinagar", "Surat",
-  "Thiruvananthapuram",
-  "Udaipur",
-  "Vadodara", "Valsad", "Vapi", "Varanasi", "Vijayawada", "Visakhapatnam",
-];
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
@@ -69,23 +51,28 @@ export default function DiscoverPage() {
   const [filterAgeMax, setFilterAgeMax] = useState(40);
   const [filterGender, setFilterGender] = useState("Everyone");
   const [filterReligion, setFilterReligion] = useState("");
+  const [filterState, setFilterState] = useState("");
   const [appliedCity, setAppliedCity] = useState("");
   const [appliedAgeMin, setAppliedAgeMin] = useState(18);
   const [appliedAgeMax, setAppliedAgeMax] = useState(40);
   const [appliedGender, setAppliedGender] = useState("Everyone");
   const [appliedReligion, setAppliedReligion] = useState("");
+  const [appliedState, setAppliedState] = useState("");
+
+  const filterDistricts = filterState ? getDistricts(filterState) : [];
 
   const FREE_LIKES = 3;
   const FREE_SUPER_LIKES = 1;
   const PREMIUM_SUPER_LIKES = 5;
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
-  const hasActiveFilter = appliedCity !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40 || appliedGender !== "Everyone" || appliedReligion !== "";
+  const hasActiveFilter = appliedCity !== "" || appliedState !== "" || appliedAgeMin !== 18 || appliedAgeMax !== 40 || appliedGender !== "Everyone" || appliedReligion !== "";
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   const fetchProfiles = useCallback(async (
     uid: string,
+    state: string,
     city: string,
     ageMin: number,
     ageMax: number,
@@ -120,6 +107,7 @@ export default function DiscoverPage() {
       .order("boost_active_until", { ascending: false, nullsFirst: false })
       .limit(20);
 
+    if (state) query = query.eq("state", state);
     if (city) query = query.eq("city", city);
     if (gender && gender !== "Everyone") {
       query = query.eq("gender", gender === "Men" ? "Man" : "Woman");
@@ -135,6 +123,7 @@ export default function DiscoverPage() {
 
   const loadProfiles = useCallback(async (
     uid: string,
+    state: string,
     city: string,
     ageMin: number,
     ageMax: number,
@@ -143,7 +132,7 @@ export default function DiscoverPage() {
   ) => {
     setLoading(true);
     setHasMore(true);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, religion);
+    const data = await fetchProfiles(uid, state, city, ageMin, ageMax, gender, religion);
     setProfiles(data);
     setHasMore(data.length === 20);
     setLoading(false);
@@ -151,6 +140,7 @@ export default function DiscoverPage() {
 
   const loadMore = useCallback(async (
     uid: string,
+    state: string,
     city: string,
     ageMin: number,
     ageMax: number,
@@ -161,7 +151,7 @@ export default function DiscoverPage() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     const existingIds = currentProfiles.map((p) => p.id);
-    const data = await fetchProfiles(uid, city, ageMin, ageMax, gender, religion, existingIds);
+    const data = await fetchProfiles(uid, state, city, ageMin, ageMax, gender, religion, existingIds);
     if (data.length > 0) {
       setProfiles((prev) => [...prev, ...data]);
       setHasMore(data.length === 20);
@@ -213,13 +203,14 @@ export default function DiscoverPage() {
         .gte("created_at", todayStart.toISOString());
       if (todaySuperLikes) setSuperLikeCount(todaySuperLikes);
 
-      await loadProfiles(user.id, "", 18, 40, userGender, "");
+      await loadProfiles(user.id, "", "", 18, 40, userGender, "");
     }
     init();
   }, [loadProfiles]);
 
   function applyFilters() {
     if (!userId) return;
+    setAppliedState(filterState);
     setAppliedCity(filterCity);
     setAppliedAgeMin(filterAgeMin);
     setAppliedAgeMax(filterAgeMax);
@@ -227,15 +218,17 @@ export default function DiscoverPage() {
     setAppliedReligion(filterReligion);
     setShowFilters(false);
     setCurrent(0);
-    loadProfiles(userId, filterCity, filterAgeMin, filterAgeMax, filterGender, filterReligion);
+    loadProfiles(userId, filterState, filterCity, filterAgeMin, filterAgeMax, filterGender, filterReligion);
   }
 
   function clearFilters() {
+    setFilterState("");
     setFilterCity("");
     setFilterAgeMin(18);
     setFilterAgeMax(40);
     setFilterGender("Everyone");
     setFilterReligion("");
+    setAppliedState("");
     setAppliedCity("");
     setAppliedAgeMin(18);
     setAppliedAgeMax(40);
@@ -243,7 +236,7 @@ export default function DiscoverPage() {
     setAppliedReligion("");
     setShowFilters(false);
     setCurrent(0);
-    if (userId) loadProfiles(userId, "", 18, 40, "Everyone", "");
+    if (userId) loadProfiles(userId, "", "", 18, 40, "Everyone", "");
   }
 
   async function handleAction(type: "like" | "skip") {
@@ -280,7 +273,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
+          loadMore(userId, appliedState, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
         }
         return next;
       });
@@ -329,7 +322,7 @@ export default function DiscoverPage() {
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
-          loadMore(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
+          loadMore(userId, appliedState, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion, profiles);
         }
         return next;
       });
@@ -452,7 +445,7 @@ export default function DiscoverPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none"
                 >
                   <option value="" className="bg-gray-900">Any religion</option>
-                  {["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi", "Swaminarayan", "Other"].map((r) => (
+                  {PRESET_RELIGIONS.map((r) => (
                     <option key={r} value={r} className="bg-gray-900">{r}</option>
                   ))}
                 </select>
@@ -460,19 +453,40 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            {/* City */}
+            {/* State */}
             <div className="mb-4">
-              <label className="text-white/50 text-xs mb-1.5 block">City</label>
+              <label className="text-white/50 text-xs mb-1.5 block">State</label>
+              <div className="relative">
+                <select
+                  value={filterState}
+                  onChange={(e) => { setFilterState(e.target.value); setFilterCity(""); }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none"
+                >
+                  <option value="" className="bg-gray-900">Any state</option>
+                  {STATES.map((s) => (
+                    <option key={s} value={s} className="bg-gray-900">{s}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* District */}
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1.5 block">District</label>
               <div className="relative">
                 <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                 <select
                   value={filterCity}
                   onChange={(e) => setFilterCity(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none"
+                  disabled={!filterState}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-red-400/50 appearance-none disabled:opacity-40"
                 >
-                  <option value="" className="bg-gray-900">Any city</option>
-                  {CITIES.map((c) => (
-                    <option key={c} value={c} className="bg-gray-900">{c}</option>
+                  <option value="" className="bg-gray-900">
+                    {filterState ? "Any district" : "Select state first"}
+                  </option>
+                  {filterDistricts.map((d) => (
+                    <option key={d} value={d} className="bg-gray-900">{d}</option>
                   ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
@@ -540,6 +554,11 @@ export default function DiscoverPage() {
                 {appliedReligion}
               </span>
             )}
+            {appliedState && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
+                <MapPin size={10} /> {appliedState}
+              </span>
+            )}
             {appliedCity && (
               <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs btn-primary text-white">
                 <MapPin size={10} /> {appliedCity}
@@ -585,7 +604,7 @@ export default function DiscoverPage() {
                 <button
                   onClick={() => {
                     setCurrent(0);
-                    if (userId) loadProfiles(userId, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion);
+                    if (userId) loadProfiles(userId, appliedState, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion);
                   }}
                   className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
                 >

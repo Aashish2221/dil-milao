@@ -11,6 +11,7 @@ type Profile = {
   full_name: string;
   age: number;
   city: string;
+  state: string;
   bio: string;
   interests: string[];
   email: string;
@@ -51,6 +52,7 @@ export default function ProfilePage() {
           full_name: user.user_metadata?.full_name || "Your Name",
           age: 0,
           city: "",
+          state: "",
           bio: "",
           interests: [],
           email: user.email || "",
@@ -131,10 +133,10 @@ export default function ProfilePage() {
             {profile?.full_name}
             {profile?.age ? <span className="gradient-text">, {profile.age}</span> : null}
           </h1>
-          {profile?.city && (
+          {(profile?.city || profile?.state) && (
             <div className="flex items-center justify-center gap-1 text-white/40 text-sm mt-1">
               <MapPin size={14} />
-              <span>{profile.city}</span>
+              <span>{[profile.city, profile.state].filter(Boolean).join(", ")}</span>
             </div>
           )}
         </div>
@@ -166,12 +168,18 @@ export default function ProfilePage() {
         </div>
 
         {/* Details row */}
-        {(profile?.religion || profile?.looking_for || profile?.gender) && (
+        {(profile?.religion || profile?.looking_for || profile?.gender || profile?.state) && (
           <div className="glass rounded-2xl p-5 mb-4 space-y-3">
             {profile.gender && (
               <div className="flex items-center justify-between">
                 <span className="text-white/40 text-sm">Gender</span>
                 <span className="text-white/70 text-sm">{profile.gender}</span>
+              </div>
+            )}
+            {profile.state && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-sm">State</span>
+                <span className="text-white/70 text-sm">{profile.state}</span>
               </div>
             )}
             {profile.religion && (

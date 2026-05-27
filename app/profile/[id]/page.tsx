@@ -9,6 +9,7 @@ type Profile = {
   full_name: string;
   age: number;
   city: string;
+  state: string;
   bio: string;
   interests: string[];
   photo_url: string;
@@ -34,7 +35,7 @@ export default function UserProfilePage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, age, city, bio, interests, photo_url, gender, religion")
+        .select("full_name, age, city, state, bio, interests, photo_url, gender, religion")
         .eq("id", id)
         .single();
       setProfile(data);
@@ -102,7 +103,7 @@ export default function UserProfilePage() {
             </h2>
             <div className="flex items-center gap-1 text-white/60 text-sm mt-1">
               <MapPin size={13} />
-              <span>{profile.city}</span>
+              <span>{[profile.city, profile.state].filter(Boolean).join(", ")}</span>
             </div>
           </div>
         </div>
@@ -146,10 +147,18 @@ export default function UserProfilePage() {
             <span className="text-white/40 text-sm">Age</span>
             <span className="text-white/70 text-sm">{profile.age}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-white/40 text-sm">City</span>
-            <span className="text-white/70 text-sm">{profile.city}</span>
-          </div>
+          {profile.state && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/40 text-sm">State</span>
+              <span className="text-white/70 text-sm">{profile.state}</span>
+            </div>
+          )}
+          {profile.city && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/40 text-sm">District</span>
+              <span className="text-white/70 text-sm">{profile.city}</span>
+            </div>
+          )}
         </div>
 
         {/* Back to discover */}
