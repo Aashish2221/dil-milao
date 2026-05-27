@@ -5,11 +5,12 @@ export const dynamic = "force-dynamic";
 
 // Amounts in paise (1 INR = 100 paise)
 const AMOUNTS: Record<string, number> = {
-  gold: 19900,      // ₹199
-  platinum: 39900,  // ₹399
-  boost_1: 4900,    // ₹49
-  boost_5: 19900,   // ₹199
-  boost_10: 34900,  // ₹349
+  trial: 500,        // ₹5
+  gold: 19900,       // ₹199
+  platinum: 39900,   // ₹399
+  boost_1: 4900,     // ₹49
+  boost_5: 19900,    // ₹199
+  boost_10: 34900,   // ₹349
 };
 
 export async function POST(req: NextRequest) {

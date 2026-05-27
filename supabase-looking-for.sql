@@ -15,3 +15,8 @@ alter table profiles
   add column if not exists notif_matches boolean default true,
   add column if not exists notif_messages boolean default true,
   add column if not exists notif_likes boolean default true;
+
+-- Add subscription tracking
+alter table profiles
+  add column if not exists razorpay_subscription_id text,
+  add column if not exists subscription_status text default 'none';

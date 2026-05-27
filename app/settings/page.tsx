@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText } from "lucide-react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
 export default function SettingsPage() {
@@ -176,6 +177,22 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Legal */}
+        <section className="glass rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
+            <FileText size={18} className="text-white/40" />
+            <span className="text-white font-medium">Legal</span>
+          </div>
+          <Link href="/terms" className="w-full flex items-center justify-between px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+            <span className="text-white/60 text-sm">Terms &amp; Conditions</span>
+            <ChevronRight size={16} className="text-white/20" />
+          </Link>
+          <Link href="/privacy" className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors">
+            <span className="text-white/60 text-sm">Privacy Policy</span>
+            <ChevronRight size={16} className="text-white/20" />
+          </Link>
         </section>
 
         <p className="text-white/15 text-xs text-center pt-2">Dil Milao · Made with ❤️ in India</p>

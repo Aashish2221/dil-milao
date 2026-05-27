@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 const PLAN_AMOUNTS: Record<string, number> = {
+  trial: 5,
   gold: 199,
   platinum: 399,
   boost_1: 49,
@@ -13,19 +14,32 @@ const PLAN_AMOUNTS: Record<string, number> = {
   boost_10: 349,
 };
 
-const PREMIUM_PLANS = new Set(["gold", "platinum"]);
+const PREMIUM_PLANS = new Set(["trial", "gold", "platinum"]);
+const PLAN_DAYS: Record<string, number> = { trial: 3, gold: 30, platinum: 30 };
 const BOOST_CREDITS: Record<string, number> = { boost_1: 1, boost_5: 5, boost_10: 10 };
 
 export async function POST(req: NextRequest) {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } =
-      await req.json();
+    const {
+      razorpay_order_id,
+      razorpay_subscription_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      plan,
+    } = await req.json();
 
-    // 1. Verify Razorpay signature — prevents tampered/fake payments
-    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const isSubscription = !!razorpay_subscription_id;
+
+    // 1. Verify Razorpay signature
+    // Subscriptions: HMAC(payment_id|subscription_id)
+    // One-time orders: HMAC(order_id|payment_id)
+    const sigBody = isSubscription
+      ? `${razorpay_payment_id}|${razorpay_subscription_id}`
+      : `${razorpay_order_id}|${razorpay_payment_id}`;
+
     const expected = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
-      .update(body)
+      .update(sigBody)
       .digest("hex");
 
     if (expected !== razorpay_signature) {
@@ -55,7 +69,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       plan,
       amount: PLAN_AMOUNTS[plan] ?? 0,
-      razorpay_order_id,
+      razorpay_order_id: razorpay_order_id ?? razorpay_subscription_id,
       razorpay_payment_id,
     });
 
@@ -65,13 +79,33 @@ export async function POST(req: NextRequest) {
 
     // 4. Grant premium access for subscription plans
     if (PREMIUM_PLANS.has(plan)) {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      // Block trial re-use before granting access
+      if (plan === "trial") {
+        const { count } = await supabase
+          .from("payments")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("plan", "trial");
+        if ((count ?? 0) > 1) {
+          return NextResponse.json({ error: "Trial already used" }, { status: 409 });
+        }
+      }
 
-      await supabase
-        .from("profiles")
-        .update({ is_premium: true, premium_expires_at: expiresAt.toISOString() })
-        .eq("id", user.id);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + (PLAN_DAYS[plan] ?? 30));
+
+      const premiumUpdate: Record<string, unknown> = {
+        is_premium: true,
+        premium_expires_at: expiresAt.toISOString(),
+      };
+
+      // Store subscription ID for recurring plans so webhook can find the user
+      if (isSubscription && razorpay_subscription_id) {
+        premiumUpdate.razorpay_subscription_id = razorpay_subscription_id;
+        premiumUpdate.subscription_status = "active";
+      }
+
+      await supabase.from("profiles").update(premiumUpdate).eq("id", user.id);
     }
 
     // 5. Credit boost tokens — activate immediately (30 min window per boost)
