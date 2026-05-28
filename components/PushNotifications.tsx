@@ -1,17 +1,27 @@
 "use client";
 import { useEffect } from "react";
+import { createClient } from "@/lib/supabase";
 
 export default function PushNotifications() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (Notification.permission !== "default") return; // already granted or denied
 
-    // Wait a bit so the user is engaged before asking
+    const perm = Notification.permission;
+
+    if (perm === "denied") return; // user explicitly blocked — nothing to do
+
+    if (perm === "granted") {
+      // Already allowed — (re-)register subscription on every load so the
+      // server always has a valid endpoint even after a db wipe or new device
+      subscribeAndSave();
+      return;
+    }
+
+    // perm === "default": wait a few seconds then ask
     const timer = setTimeout(async () => {
       try {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") return;
-        await subscribe();
+        const granted = await Notification.requestPermission();
+        if (granted === "granted") subscribeAndSave();
       } catch {}
     }, 5000);
 
@@ -21,26 +31,32 @@ export default function PushNotifications() {
   return null;
 }
 
-async function subscribe() {
-  const reg = await navigator.serviceWorker.ready;
-  const existing = await reg.pushManager.getSubscription();
-  if (existing) { await saveSubscription(existing); return; }
+async function subscribeAndSave() {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return; // not logged in — no point saving
 
-  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey),
-  });
-  await saveSubscription(sub);
-}
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
 
-async function saveSubscription(sub: PushSubscription) {
-  const json = sub.toJSON();
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(json),
-  });
+    if (!sub) {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+
+    const json = sub.toJSON();
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(json),
+    });
+  } catch (err) {
+    console.error("Push subscribe error:", err);
+  }
 }
 
 function urlBase64ToUint8Array(base64String: string) {
