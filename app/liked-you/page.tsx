@@ -229,6 +229,7 @@ export default function LikedYouPage() {
         title: "New Match! 💕",
         body: "Someone liked you back on Dil Milao!",
         url: "/matches",
+        type: "match",
       }),
     }).catch(() => {});
   }

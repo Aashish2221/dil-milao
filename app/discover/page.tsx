@@ -43,6 +43,9 @@ export default function DiscoverPage() {
   const [cardMenuOpen, setCardMenuOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const cardMenuRef = useRef<HTMLDivElement>(null);
+  const [boostCredits, setBoostCredits] = useState(0);
+  const [boostActiveUntil, setBoostActiveUntil] = useState<Date | null>(null);
+  const [boostLoading, setBoostLoading] = useState(false);
 
   const dragStartX = useRef<number | null>(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
@@ -182,7 +185,7 @@ export default function DiscoverPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_premium, premium_expires_at, looking_for")
+        .select("is_premium, premium_expires_at, looking_for, boost_credits, boost_active_until")
         .eq("id", user.id)
         .single();
 
@@ -190,6 +193,11 @@ export default function DiscoverPage() {
         profile?.is_premium === true &&
         (!profile.premium_expires_at || new Date(profile.premium_expires_at) > new Date());
       setIsPremium(premiumActive);
+
+      setBoostCredits(profile?.boost_credits ?? 0);
+      if (profile?.boost_active_until && new Date(profile.boost_active_until) > new Date()) {
+        setBoostActiveUntil(new Date(profile.boost_active_until));
+      }
 
       const userGender = profile?.looking_for || "Everyone";
       setFilterGender(userGender);
@@ -251,6 +259,24 @@ export default function DiscoverPage() {
     if (userId) loadProfiles(userId, "", "", 18, 40, "Everyone", "");
   }
 
+  async function handleBoost() {
+    setBoostLoading(true);
+    try {
+      const res = await fetch("/api/boost", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.boost_active_until) {
+        setBoostActiveUntil(new Date(data.boost_active_until));
+        setBoostCredits((c) => Math.max(0, c - 1));
+      } else {
+        alert(data.error || "Could not activate boost");
+      }
+    } catch {
+      alert("Could not activate boost");
+    } finally {
+      setBoostLoading(false);
+    }
+  }
+
   async function handleBlockProfile(profileId: string) {
     if (!userId) return;
     setCardMenuOpen(false);
@@ -283,7 +309,7 @@ export default function DiscoverPage() {
         fetch("/api/push/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches", type: "match" }),
         }).catch(() => {});
       }
       setLikeCount((c) => c + 1);
@@ -328,7 +354,7 @@ export default function DiscoverPage() {
         fetch("/api/push/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches" }),
+          body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches", type: "match" }),
         }).catch(() => {});
       }
 
@@ -606,6 +632,39 @@ export default function DiscoverPage() {
             >
               Clear
             </button>
+          </div>
+        )}
+
+        {/* Boost bar */}
+        {(boostCredits > 0 || boostActiveUntil) && (
+          <div className="mb-4 glass rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Zap size={16} className={boostActiveUntil && boostActiveUntil > new Date() ? "text-yellow-400" : "text-white/40"} fill={boostActiveUntil && boostActiveUntil > new Date() ? "#facc15" : "none"} />
+              <div>
+                {boostActiveUntil && boostActiveUntil > new Date() ? (
+                  <>
+                    <p className="text-yellow-400 text-xs font-semibold">Boost Active!</p>
+                    <p className="text-white/40 text-[10px]">You're appearing at the top of feeds</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-white/70 text-xs font-semibold">{boostCredits} Boost Credit{boostCredits !== 1 ? "s" : ""}</p>
+                    <p className="text-white/40 text-[10px]">Get 10x visibility for 30 minutes</p>
+                  </>
+                )}
+              </div>
+            </div>
+            {(!boostActiveUntil || boostActiveUntil <= new Date()) && boostCredits > 0 && (
+              <button
+                onClick={handleBoost}
+                disabled={boostLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-black disabled:opacity-50 transition-all hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #f9ca24, #f0932b)" }}
+              >
+                <Zap size={12} fill="currentColor" />
+                {boostLoading ? "Activating..." : "Boost Now"}
+              </button>
+            )}
           </div>
         )}
 

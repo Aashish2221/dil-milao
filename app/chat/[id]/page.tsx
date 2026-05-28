@@ -244,7 +244,7 @@ export default function ChatPage() {
       fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to_user_id: otherUserId, title: `${matchName} sent you a message`, body: content.slice(0, 80), url: `/chat/${myUserId}` }),
+        body: JSON.stringify({ to_user_id: otherUserId, title: `${matchName} sent you a message`, body: content.slice(0, 80), url: `/chat/${myUserId}`, type: "message" }),
       }).catch(() => {});
     }
   }

@@ -9,6 +9,13 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 );
 
+// type is one of "match" | "message" | "like" — maps to notif_* columns
+const NOTIF_PREF_COLUMN: Record<string, string> = {
+  match: "notif_matches",
+  message: "notif_messages",
+  like: "notif_likes",
+};
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -25,8 +32,21 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { to_user_id, title, body, url } = await req.json();
+  const { to_user_id, title, body, url, type } = await req.json();
   if (!to_user_id || !title) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+
+  // Check if the recipient has this notification type enabled
+  if (type && NOTIF_PREF_COLUMN[type]) {
+    const col = NOTIF_PREF_COLUMN[type];
+    const { data: prefs } = await supabase
+      .from("profiles")
+      .select(col)
+      .eq("id", to_user_id)
+      .single();
+    if (prefs && (prefs as unknown as Record<string, unknown>)[col] === false) {
+      return NextResponse.json({ ok: true, sent: 0, skipped: "user preference" });
+    }
+  }
 
   const { data: subs } = await supabase
     .from("push_subscriptions")

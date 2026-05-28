@@ -21,6 +21,7 @@ alter table profiles
   add column if not exists razorpay_subscription_id text,
   add column if not exists subscription_status text default 'none';
 
--- Add boost credits
+-- Add boost credits and boost active window
 alter table profiles
-  add column if not exists boost_credits integer default 0;
+  add column if not exists boost_credits integer default 0,
+  add column if not exists boost_active_until timestamptz;
