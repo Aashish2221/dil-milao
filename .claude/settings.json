@@ -3,7 +3,8 @@
     "allow": [
       "Bash(not exist *)",
       "Bash(git checkout *)",
-      "Bash(mkdir -p \"d:\\\\Git\\\\dil-milao\\\\app\\\\profile\\\\[id]\")"
+      "Bash(mkdir -p \"d:\\\\Git\\\\dil-milao\\\\app\\\\profile\\\\[id]\")",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "d:\\Git\\dil-milao\\app\\profile"
