@@ -673,38 +673,46 @@ export default function DiscoverPage() {
             <div className="w-8 h-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
           </div>
         ) : isDone ? (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 rounded-full glass flex items-center justify-center mx-auto mb-6">
-              <Heart size={40} className="text-red-400/40" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {hasActiveFilter ? "No profiles match your filters!" : "You've seen everyone!"}
-            </h2>
-            <p className="text-white/40 text-sm mb-8">
-              {hasActiveFilter
-                ? "Try widening your city or age range."
-                : "New people join every day. Check back soon!"}
-            </p>
-            <div className="flex flex-col gap-3 max-w-xs mx-auto">
-              {hasActiveFilter ? (
+          <div className="text-center py-12">
+            {hasActiveFilter ? (
+              <>
+                <div className="w-20 h-20 rounded-full glass flex items-center justify-center mx-auto mb-5">
+                  <SlidersHorizontal size={32} className="text-white/30" />
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">No profiles match</h2>
+                <p className="text-white/40 text-sm mb-6 max-w-xs mx-auto">
+                  No one matches your current filters. Try widening your age range, removing the city filter, or selecting a different state.
+                </p>
                 <button onClick={clearFilters} className="btn-primary px-8 py-3 rounded-full text-white font-semibold">
                   Clear Filters
                 </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setCurrent(0);
-                    if (userId) loadProfiles(userId, appliedState, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion);
-                  }}
-                  className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
-                >
-                  Start Over
-                </button>
-              )}
-              <a href="/matches" className="px-8 py-3 rounded-full glass text-white/60 text-sm font-medium hover:text-white transition-colors">
-                Browse Your Matches
-              </a>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl mb-4">🎉</div>
+                <h2 className="text-xl font-bold text-white mb-2">You&apos;ve seen everyone!</h2>
+                <p className="text-white/40 text-sm mb-6 max-w-xs mx-auto">
+                  You&apos;ve gone through all profiles. New people join every day — check back soon or revisit profiles you already saw.
+                </p>
+                <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                  <button
+                    onClick={() => {
+                      setCurrent(0);
+                      if (userId) loadProfiles(userId, appliedState, appliedCity, appliedAgeMin, appliedAgeMax, appliedGender, appliedReligion);
+                    }}
+                    className="btn-primary px-8 py-3 rounded-full text-white font-semibold"
+                  >
+                    Start Over
+                  </button>
+                  <a href="/matches" className="px-8 py-3 rounded-full glass text-white/60 text-sm font-medium hover:text-white transition-colors text-center">
+                    Browse Your Matches
+                  </a>
+                  <a href="/liked-you" className="px-8 py-3 rounded-full glass text-white/60 text-sm font-medium hover:text-white transition-colors text-center">
+                    See Who Liked You
+                  </a>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

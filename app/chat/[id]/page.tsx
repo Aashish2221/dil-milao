@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Heart, MoreVertical, UserX, ShieldX, Flag, Crown } from "lucide-react";
+import { ArrowLeft, Send, MoreVertical, UserX, ShieldX, Flag, Crown } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import ReportModal from "@/components/ReportModal";
@@ -16,10 +16,40 @@ type Message = {
   read?: boolean;
 };
 
+function formatTime(dateStr: string) {
+  return new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="message-bubble-them px-4 py-3 flex items-center gap-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-white/40"
+            style={{ animation: `typingDot 1.2s ease infinite`, animationDelay: `${i * 0.2}s` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
-  const otherUserId = params.id as string;   // matched user's profile ID
+  const otherUserId = params.id as string;
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -27,6 +57,7 @@ export default function ChatPage() {
   const [matchPhoto, setMatchPhoto] = useState("");
   const [loading, setLoading] = useState(true);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
@@ -35,6 +66,9 @@ export default function ChatPage() {
   const FREE_MSG_LIMIT = 3;
   const menuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const broadcastChannelRef = useRef<any>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,7 +79,6 @@ export default function ChatPage() {
       if (!user) { router.push("/login"); return; }
       setMyUserId(user.id);
 
-      // Check premium status
       const { data: myProfile } = await supabase
         .from("profiles")
         .select("is_premium, premium_expires_at")
@@ -56,7 +89,6 @@ export default function ChatPage() {
         (!myProfile.premium_expires_at || new Date(myProfile.premium_expires_at) > new Date());
       setIsPremium(premiumActive);
 
-      // Load the other person's name and photo
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, photo_url")
@@ -67,7 +99,6 @@ export default function ChatPage() {
         setMatchPhoto(profile.photo_url || "");
       }
 
-      // Load existing messages between these two users
       const { data } = await supabase
         .from("messages")
         .select("*")
@@ -82,7 +113,6 @@ export default function ChatPage() {
       setMyMsgCount(mapped.filter((m) => m.is_me).length);
       setLoading(false);
 
-      // Mark all received messages from the other user as read
       const myId = user.id;
       async function markAsRead() {
         await supabase
@@ -94,9 +124,10 @@ export default function ChatPage() {
       }
       await markAsRead();
 
-      // Subscribe to new messages + read receipt updates in real-time
+      // Messages + read receipts channel
+      const channelName = `chat-${[user.id, otherUserId].sort().join("-")}`;
       const channel = supabase
-        .channel(`chat-${[user.id, otherUserId].sort().join("-")}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages" },
@@ -108,7 +139,6 @@ export default function ChatPage() {
             if (isRelevant) {
               setMessages((prev) => {
                 if (prev.find((m) => m.id === msg.id)) return prev;
-                // Replace the optimistic temp message for our own sent messages
                 if (msg.sender_id === user.id) {
                   const tempIdx = prev.findIndex(
                     (m) => m.id.startsWith("temp-") && m.content === msg.content
@@ -119,10 +149,7 @@ export default function ChatPage() {
                     return updated;
                   }
                 }
-                // If the other person sent it, mark it as read immediately
-                if (msg.sender_id === otherUserId) {
-                  markAsRead();
-                }
+                if (msg.sender_id === otherUserId) markAsRead();
                 return [...prev, { ...msg, is_me: msg.sender_id === user.id }];
               });
             }
@@ -133,7 +160,6 @@ export default function ChatPage() {
           { event: "UPDATE", schema: "public", table: "messages" },
           (payload) => {
             const updated = payload.new as Message;
-            // When the other user reads one of our messages, update its read status
             if (updated.sender_id === user.id && updated.receiver_id === otherUserId) {
               setMessages((prev) =>
                 prev.map((m) => m.id === updated.id ? { ...m, read: updated.read } : m)
@@ -143,15 +169,27 @@ export default function ChatPage() {
         )
         .subscribe();
 
-      // Presence: track current user online, watch if other user is online
+      // Broadcast channel for typing events
+      const typingChannel = supabase.channel(`typing-${channelName}`);
+      typingChannel
+        .on("broadcast", { event: "typing" }, ({ payload }: { payload: { user_id: string } }) => {
+          if (payload.user_id === otherUserId) {
+            setIsOtherTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setIsOtherTyping(false), 2500);
+          }
+        })
+        .subscribe();
+
+      broadcastChannelRef.current = typingChannel;
+
+      // Presence for online status
       const presenceChannel = supabase.channel("online-users", {
         config: { presence: { key: user.id } },
       });
-
       presenceChannel
         .on("presence", { event: "sync" }, () => {
-          const state = presenceChannel.presenceState();
-          setIsOtherOnline(otherUserId in state);
+          setIsOtherOnline(otherUserId in presenceChannel.presenceState());
         })
         .on("presence", { event: "join" }, ({ key }: { key: string }) => {
           if (key === otherUserId) setIsOtherOnline(true);
@@ -167,7 +205,9 @@ export default function ChatPage() {
 
       cleanup = () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(typingChannel);
         supabase.removeChannel(presenceChannel);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       };
     }
 
@@ -177,9 +217,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isOtherTyping]);
 
-  // Close menu on outside click
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
@@ -214,6 +253,18 @@ export default function ChatPage() {
     router.push("/discover");
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setNewMessage(e.target.value);
+    // Broadcast typing event (fire-and-forget)
+    if (broadcastChannelRef.current && myUserId) {
+      broadcastChannelRef.current.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { user_id: myUserId },
+      });
+    }
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() || !myUserId) return;
@@ -222,7 +273,6 @@ export default function ChatPage() {
     const content = newMessage.trim();
     setNewMessage("");
 
-    // Optimistic update
     const tempId = `temp-${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -244,177 +294,192 @@ export default function ChatPage() {
       fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to_user_id: otherUserId, title: `${matchName} sent you a message`, body: content.slice(0, 80), url: `/chat/${myUserId}`, type: "message" }),
+        body: JSON.stringify({
+          to_user_id: otherUserId,
+          title: `${matchName} sent you a message`,
+          body: content.slice(0, 80),
+          url: `/chat/${myUserId}`,
+          type: "message",
+        }),
       }).catch(() => {});
     }
   }
 
-  function formatTime(dateStr: string) {
-    return new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  // Group messages with date separators
+  const messagesWithDates: Array<Message | { type: "date"; label: string; key: string }> = [];
+  let lastDate = "";
+  for (const msg of messages) {
+    const dateLabel = formatDateLabel(msg.created_at);
+    if (dateLabel !== lastDate) {
+      messagesWithDates.push({ type: "date", label: dateLabel, key: `date-${msg.id}` });
+      lastDate = dateLabel;
+    }
+    messagesWithDates.push(msg);
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#0a0a0f" }}>
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 flex items-center gap-3 px-4 py-3">
-        <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
-          <ArrowLeft size={22} />
-        </button>
-        {matchPhoto ? (
-          <div className="w-10 h-10 rounded-full overflow-hidden relative flex-shrink-0">
-            <Image
-              src={matchPhoto}
-              alt={matchName}
-              fill
-              className="object-cover"
-              sizes="40px"
-            />
-          </div>
-        ) : (
-          <div className="w-10 h-10 rounded-full btn-primary flex items-center justify-center font-bold text-white flex-shrink-0">
-            {matchName.split(" ").map((n) => n[0]).join("").toUpperCase()}
-          </div>
-        )}
-        <div className="flex-1">
-          <h2 className="text-white font-semibold text-sm">{matchName}</h2>
-          <div className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${isOtherOnline ? "bg-green-400" : "bg-white/20"}`} />
-            <span className={`text-xs ${isOtherOnline ? "text-green-400/60" : "text-white/30"}`}>
-              {isOtherOnline ? "Online" : "Offline"}
-            </span>
-          </div>
-        </div>
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowMenu((o) => !o)}
-            className="p-2 text-white/40 hover:text-white/70 transition-colors"
-          >
-            <MoreVertical size={20} />
-          </button>
+    <>
+      <style>{`
+        @keyframes typingDot {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-4px); }
+        }
+      `}</style>
 
-          {showMenu && (
-            <div
-              className="absolute right-0 top-10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[160px]"
-              style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)" }}
-            >
-              <button
-                onClick={handleUnmatch}
-                className="w-full flex items-center gap-2 px-4 py-3 text-orange-400 text-sm hover:bg-white/5 transition-colors"
-              >
-                <UserX size={15} /> Unmatch
-              </button>
-              <button
-                onClick={handleBlock}
-                className="w-full flex items-center gap-2 px-4 py-3 text-red-400 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
-              >
-                <ShieldX size={15} /> Block
-              </button>
-              <button
-                onClick={() => { setShowMenu(false); setShowReport(true); }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-white/40 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
-              >
-                <Flag size={15} /> Report
-              </button>
+      <div className="min-h-screen flex flex-col" style={{ background: "#0a0a0f" }}>
+        {/* Header */}
+        <header className="glass sticky top-0 z-50 flex items-center gap-3 px-4 py-3">
+          <button onClick={() => router.back()} className="text-white/60 hover:text-white transition-colors">
+            <ArrowLeft size={22} />
+          </button>
+          {matchPhoto ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden relative flex-shrink-0">
+              <Image src={matchPhoto} alt={matchName} fill className="object-cover" sizes="40px" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full btn-primary flex items-center justify-center font-bold text-white flex-shrink-0">
+              {matchName.split(" ").map((n) => n[0]).join("").toUpperCase()}
             </div>
           )}
-        </div>
-      </header>
-
-      {showReport && (
-        <ReportModal
-          reportedId={otherUserId}
-          reportedName={matchName}
-          onClose={() => setShowReport(false)}
-        />
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        <div className="text-center mb-4">
-          <span className="glass px-4 py-1 rounded-full text-white/30 text-xs">
-            You matched! Say hello 👋
-          </span>
-        </div>
-
-        {loading && (
-          <div className="flex justify-center py-10">
-            <div className="w-6 h-6 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
-          </div>
-        )}
-
-        {!loading && messages.length === 0 && (
-          <div className="text-center py-10 text-white/30 text-sm">
-            No messages yet. Be the first to say hi!
-          </div>
-        )}
-
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.is_me ? "justify-end" : "justify-start"}`}>
-            <div className="max-w-[75%]">
-              <div
-                className={`px-4 py-2.5 text-sm ${
-                  msg.is_me ? "message-bubble-me text-white" : "message-bubble-them text-white/80"
-                }`}
-              >
-                {msg.content}
-              </div>
-              <div className={`flex items-center gap-1 mt-1 ${msg.is_me ? "justify-end" : "justify-start"}`}>
-                <span className="text-white/20 text-xs">{formatTime(msg.created_at)}</span>
-                {msg.is_me && (
-                  <span className={`text-xs leading-none ${msg.read ? "text-blue-400" : "text-white/25"}`}>
-                    {msg.id.startsWith("temp-") ? "✓" : "✓✓"}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-semibold text-sm truncate">{matchName}</h2>
+            <div className="flex items-center gap-1">
+              {isOtherTyping ? (
+                <span className="text-xs text-red-400/70 italic">typing…</span>
+              ) : (
+                <>
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOtherOnline ? "bg-green-400" : "bg-white/20"}`} />
+                  <span className={`text-xs ${isOtherOnline ? "text-green-400/60" : "text-white/30"}`}>
+                    {isOtherOnline ? "Online" : "Offline"}
                   </span>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input */}
-      <div className="glass border-t border-white/5">
-        {/* Free user limit banner */}
-        {!isPremium && myMsgCount >= FREE_MSG_LIMIT ? (
-          <div className="p-4 text-center">
-            <Crown size={24} className="text-yellow-400 mx-auto mb-2" />
-            <p className="text-white font-semibold text-sm mb-1">Message limit reached</p>
-            <p className="text-white/40 text-xs mb-3">
-              Free users can send {FREE_MSG_LIMIT} messages per conversation. Upgrade to chat freely!
-            </p>
-            <a
-              href="/premium"
-              className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white text-sm font-semibold"
-            >
-              <Crown size={14} /> Go Premium — ₹199/mo
-            </a>
-          </div>
-        ) : (
-          <form onSubmit={sendMessage} className="p-4 flex items-center gap-3">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-full px-5 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/40 text-sm transition-colors"
-            />
+          <div className="relative" ref={menuRef}>
             <button
-              type="submit"
-              disabled={!newMessage.trim()}
-              className="btn-primary w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-30"
+              onClick={() => setShowMenu((o) => !o)}
+              className="p-2 text-white/40 hover:text-white/70 transition-colors"
             >
-              <Send size={18} className="text-white" />
+              <MoreVertical size={20} />
             </button>
-          </form>
+            {showMenu && (
+              <div
+                className="absolute right-0 top-10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[160px]"
+                style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <button onClick={handleUnmatch} className="w-full flex items-center gap-2 px-4 py-3 text-orange-400 text-sm hover:bg-white/5 transition-colors">
+                  <UserX size={15} /> Unmatch
+                </button>
+                <button onClick={handleBlock} className="w-full flex items-center gap-2 px-4 py-3 text-red-400 text-sm hover:bg-white/5 transition-colors border-t border-white/5">
+                  <ShieldX size={15} /> Block
+                </button>
+                <button onClick={() => { setShowMenu(false); setShowReport(true); }} className="w-full flex items-center gap-2 px-4 py-3 text-white/40 text-sm hover:bg-white/5 transition-colors border-t border-white/5">
+                  <Flag size={15} /> Report
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {showReport && (
+          <ReportModal reportedId={otherUserId} reportedName={matchName} onClose={() => setShowReport(false)} />
         )}
-        {/* Counter for free users */}
-        {!isPremium && myMsgCount < FREE_MSG_LIMIT && (
-          <p className="text-center text-white/20 text-[10px] pb-2">
-            {FREE_MSG_LIMIT - myMsgCount} free message{FREE_MSG_LIMIT - myMsgCount !== 1 ? "s" : ""} remaining —{" "}
-            <a href="/premium" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">Go Premium</a> for unlimited
-          </p>
-        )}
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div className="text-center mb-4">
+            <span className="glass px-4 py-1 rounded-full text-white/30 text-xs">
+              You matched! Say hello 👋
+            </span>
+          </div>
+
+          {loading && (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
+            </div>
+          )}
+
+          {!loading && messages.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-white/20 text-sm">No messages yet.</p>
+              <p className="text-white/30 text-sm mt-1">Break the ice — say something!</p>
+            </div>
+          )}
+
+          {messagesWithDates.map((item) => {
+            if ("type" in item && item.type === "date") {
+              return (
+                <div key={item.key} className="flex items-center gap-3 my-2">
+                  <div className="flex-1 h-px bg-white/5" />
+                  <span className="text-white/25 text-[10px] font-medium">{item.label}</span>
+                  <div className="flex-1 h-px bg-white/5" />
+                </div>
+              );
+            }
+            const msg = item as Message;
+            return (
+              <div key={msg.id} className={`flex ${msg.is_me ? "justify-end" : "justify-start"}`}>
+                <div className="max-w-[75%]">
+                  <div className={`px-4 py-2.5 text-sm ${msg.is_me ? "message-bubble-me text-white" : "message-bubble-them text-white/80"}`}>
+                    {msg.content}
+                  </div>
+                  <div className={`flex items-center gap-1 mt-1 ${msg.is_me ? "justify-end" : "justify-start"}`}>
+                    <span className="text-white/20 text-xs">{formatTime(msg.created_at)}</span>
+                    {msg.is_me && (
+                      <span className={`text-xs leading-none ${msg.read ? "text-blue-400" : "text-white/25"}`}>
+                        {msg.id.startsWith("temp-") ? "✓" : "✓✓"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {isOtherTyping && <TypingIndicator />}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="glass border-t border-white/5">
+          {!isPremium && myMsgCount >= FREE_MSG_LIMIT ? (
+            <div className="p-4 text-center">
+              <Crown size={24} className="text-yellow-400 mx-auto mb-2" />
+              <p className="text-white font-semibold text-sm mb-1">Message limit reached</p>
+              <p className="text-white/40 text-xs mb-3">
+                Free users can send {FREE_MSG_LIMIT} messages per conversation. Upgrade to chat freely!
+              </p>
+              <a href="/premium" className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white text-sm font-semibold">
+                <Crown size={14} /> Go Premium — ₹199/mo
+              </a>
+            </div>
+          ) : (
+            <form onSubmit={sendMessage} className="p-4 flex items-center gap-3">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={handleInputChange}
+                placeholder="Type a message..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-full px-5 py-3 text-white placeholder-white/20 focus:outline-none focus:border-red-400/40 text-sm transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim()}
+                className="btn-primary w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-30"
+              >
+                <Send size={18} className="text-white" />
+              </button>
+            </form>
+          )}
+          {!isPremium && myMsgCount < FREE_MSG_LIMIT && (
+            <p className="text-center text-white/20 text-[10px] pb-2">
+              {FREE_MSG_LIMIT - myMsgCount} free message{FREE_MSG_LIMIT - myMsgCount !== 1 ? "s" : ""} remaining —{" "}
+              <a href="/premium" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">Go Premium</a> for unlimited
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
