@@ -16,21 +16,25 @@ create table if not exists public.notifications (
 -- RLS
 alter table public.notifications enable row level security;
 
+drop policy if exists "Users can see their own notifications" on public.notifications;
 create policy "Users can see their own notifications"
   on public.notifications for select
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "System can insert notifications" on public.notifications;
 create policy "System can insert notifications"
   on public.notifications for insert
   to authenticated
   with check (true);
 
+drop policy if exists "Users can mark their notifications read" on public.notifications;
 create policy "Users can mark their notifications read"
   on public.notifications for update
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can delete their own notifications" on public.notifications;
 create policy "Users can delete their own notifications"
   on public.notifications for delete
   to authenticated

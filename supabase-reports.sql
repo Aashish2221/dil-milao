@@ -12,11 +12,13 @@ create table if not exists public.reports (
 
 alter table public.reports enable row level security;
 
+drop policy if exists "Users can file reports" on public.reports;
 create policy "Users can file reports"
   on public.reports for insert
   to authenticated
   with check (auth.uid() = reporter_id);
 
+drop policy if exists "Users can see their own reports" on public.reports;
 create policy "Users can see their own reports"
   on public.reports for select
   to authenticated
@@ -26,7 +28,8 @@ create policy "Users can see their own reports"
 alter table public.reports
   add column if not exists resolved boolean default false;
 
--- Admin can read all reports (replace with your admin user id)
+-- Admin can read all reports
+drop policy if exists "Admin can read all reports" on public.reports;
 create policy "Admin can read all reports"
   on public.reports for select
   to authenticated
@@ -36,6 +39,7 @@ create policy "Admin can read all reports"
     )
   );
 
+drop policy if exists "Admin can update reports" on public.reports;
 create policy "Admin can update reports"
   on public.reports for update
   to authenticated
@@ -45,6 +49,7 @@ create policy "Admin can update reports"
     )
   );
 
+drop policy if exists "Admin can delete reports" on public.reports;
 create policy "Admin can delete reports"
   on public.reports for delete
   to authenticated
