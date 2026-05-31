@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings } from "lucide-react";
+import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings, Camera } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -104,6 +104,14 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
       <Navbar />
+      <button
+        onClick={() => router.push("/setup")}
+        className="fixed top-4 right-4 z-40 glass rounded-full p-2.5 flex items-center gap-1.5 text-white/60 hover:text-white transition-colors"
+        title="Edit profile"
+      >
+        <Edit3 size={16} />
+        <span className="text-xs font-medium pr-0.5">Edit</span>
+      </button>
 
       <div className="max-w-md mx-auto px-4 pt-6">
         {/* Profile header */}
@@ -127,6 +135,14 @@ export default function ProfilePage() {
                 {initials}
               </div>
             )}
+            <button
+              onClick={() => router.push("/setup")}
+              className="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+              style={{ background: "linear-gradient(135deg, #ff6b6b, #ee5a24)" }}
+              title="Edit profile"
+            >
+              <Camera size={14} className="text-white" />
+            </button>
           </div>
 
           <h1 className="text-2xl font-bold text-white">
