@@ -55,6 +55,7 @@ export const config = {
     '/notifications/:path*',
     '/liked-you/:path*',
     '/settings/:path*',
+    '/settings/blocked',
     '/my-likes/:path*',
     '/admin/:path*',
   ],

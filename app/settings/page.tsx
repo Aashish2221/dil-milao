@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText, Flag } from "lucide-react";
+import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText, Flag, ShieldX } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
@@ -139,6 +139,14 @@ export default function SettingsPage() {
             {pwStatus === "sent" && <p className="ml-7 text-xs text-green-400/70">Reset link sent! Check your inbox.</p>}
             {pwStatus === "error" && <p className="ml-7 text-xs text-red-400/70">Failed to send. Try again.</p>}
           </div>
+
+          <Link href="/settings/blocked" className="w-full flex items-center justify-between px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-3">
+              <ShieldX size={16} className="text-white/40" />
+              <span className="text-white/70 text-sm">Blocked Users</span>
+            </div>
+            <ChevronRight size={16} className="text-white/20" />
+          </Link>
 
           <button
             onClick={handleLogout}
