@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings, Camera, AlertCircle } from "lucide-react";
+import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings, Camera, AlertCircle, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -31,12 +31,15 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<Stats>({ matches: 0, likesSent: 0 });
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+      setUserId(user.id);
 
       // Load profile data
       const { data } = await supabase
@@ -85,6 +88,18 @@ export default function ProfilePage() {
     loadProfile();
   }, [router]);
 
+  async function handleShare() {
+    const shareUrl = `https://dil-milao.vercel.app/p/${userId}`;
+    const text = `Check out my profile on Dil Milao 💕\n${shareUrl}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: `${profile?.full_name} on Dil Milao`, text, url: shareUrl }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    }
+  }
+
   async function handleLogout() {
     const supabase = createClient();
     const { error } = await supabase.auth.signOut();
@@ -104,14 +119,26 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
       <Navbar />
-      <button
-        onClick={() => router.push("/setup")}
-        className="fixed top-4 right-4 z-40 glass rounded-full p-2.5 flex items-center gap-1.5 text-white/60 hover:text-white transition-colors"
-        title="Edit profile"
-      >
-        <Edit3 size={16} />
-        <span className="text-xs font-medium pr-0.5">Edit</span>
-      </button>
+      <div className="fixed top-4 right-4 z-40 flex gap-2">
+        {userId && (
+          <button
+            onClick={handleShare}
+            className="glass rounded-full p-2.5 flex items-center gap-1.5 text-white/60 hover:text-white transition-colors"
+            title="Share profile"
+          >
+            <Share2 size={16} />
+            <span className="text-xs font-medium pr-0.5">{shareCopied ? "Copied!" : "Share"}</span>
+          </button>
+        )}
+        <button
+          onClick={() => router.push("/setup")}
+          className="glass rounded-full p-2.5 flex items-center gap-1.5 text-white/60 hover:text-white transition-colors"
+          title="Edit profile"
+        >
+          <Edit3 size={16} />
+          <span className="text-xs font-medium pr-0.5">Edit</span>
+        </button>
+      </div>
 
       <div className="max-w-md mx-auto px-4 pt-6">
         {/* Profile completeness nudge */}
