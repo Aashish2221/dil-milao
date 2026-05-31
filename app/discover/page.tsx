@@ -356,6 +356,12 @@ export default function DiscoverPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ to_user_id: toUserId, title: "New Match! 💕", body: "You have a new match on Dil Milao!", url: "/matches", type: "match" }),
         }).catch(() => {});
+      } else {
+        fetch("/api/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to_user_id: toUserId, title: "⭐ Someone Super Liked you!", body: "Someone thinks you're special on Dil Milao!", url: "/liked-you", type: "like" }),
+        }).catch(() => {});
       }
 
       setSuperLikeCount((c) => c + 1);
