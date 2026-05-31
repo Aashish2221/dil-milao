@@ -21,3 +21,35 @@ create policy "Users can see their own reports"
   on public.reports for select
   to authenticated
   using (auth.uid() = reporter_id);
+
+-- Add resolved column for admin workflow
+alter table public.reports
+  add column if not exists resolved boolean default false;
+
+-- Admin can read all reports (replace with your admin user id)
+create policy "Admin can read all reports"
+  on public.reports for select
+  to authenticated
+  using (
+    auth.uid() in (
+      select id from public.profiles where email = 'aashishpatil2221@gmail.com'
+    )
+  );
+
+create policy "Admin can update reports"
+  on public.reports for update
+  to authenticated
+  using (
+    auth.uid() in (
+      select id from public.profiles where email = 'aashishpatil2221@gmail.com'
+    )
+  );
+
+create policy "Admin can delete reports"
+  on public.reports for delete
+  to authenticated
+  using (
+    auth.uid() in (
+      select id from public.profiles where email = 'aashishpatil2221@gmail.com'
+    )
+  );

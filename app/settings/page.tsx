@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText } from "lucide-react";
+import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText, Flag } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [pwStatus, setPwStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Load saved notification preferences
   useEffect(() => {
@@ -20,6 +21,7 @@ export default function SettingsPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      if (user.email === "aashishpatil2221@gmail.com") setIsAdmin(true);
       const { data } = await supabase
         .from("profiles")
         .select("notif_matches, notif_messages, notif_likes")
@@ -178,6 +180,23 @@ export default function SettingsPage() {
             </div>
           )}
         </section>
+
+        {/* Admin */}
+        {isAdmin && (
+          <section className="glass rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
+              <ShieldCheck size={18} className="text-red-400/70" />
+              <span className="text-white font-medium">Admin</span>
+            </div>
+            <Link href="/admin/reports" className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3">
+                <Flag size={16} className="text-red-400/60" />
+                <span className="text-white/70 text-sm">User Reports</span>
+              </div>
+              <ChevronRight size={16} className="text-white/20" />
+            </Link>
+          </section>
+        )}
 
         {/* Legal */}
         <section className="glass rounded-2xl overflow-hidden">
