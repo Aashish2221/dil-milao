@@ -317,6 +317,9 @@ export default function ChatPage() {
     messagesWithDates.push(msg);
   }
 
+  // ID of the last message sent by me that has been read
+  const lastReadMsgId = [...messages].reverse().find((m) => m.is_me && m.read && !m.id.startsWith("temp-"))?.id;
+
   return (
     <>
       <style>{`
@@ -430,6 +433,9 @@ export default function ChatPage() {
                       <span className={`text-xs leading-none ${msg.read ? "text-blue-400" : "text-white/25"}`}>
                         {msg.id.startsWith("temp-") ? "✓" : "✓✓"}
                       </span>
+                    )}
+                    {msg.id === lastReadMsgId && (
+                      <span className="text-blue-400/70 text-[10px]">Seen</span>
                     )}
                   </div>
                 </div>
