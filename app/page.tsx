@@ -1,6 +1,28 @@
-"use client";
 import Link from "next/link";
 import { Heart, Star, Shield, Zap, Users, MessageCircle, MapPin, Check } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dil Milao — Indian Dating App | Find Your Match",
+  description: "India's modern dating app for ages 18–30. Connect with genuine Indians, filter by state/city/religion, and find real love. Free to join. 2 lakh+ users.",
+  keywords: ["Indian dating app", "dating app India", "dil milao", "Indian matchmaking", "dating site India", "meet Indian singles", "Hindi dating app", "shaadi app"],
+  alternates: { canonical: "https://dil-milao.vercel.app" },
+  openGraph: {
+    title: "Dil Milao — Find Your Dil Ka Rishta",
+    description: "India's modern dating app. Filter by state, city, religion & age. Real connections, Indian values. Free forever.",
+    url: "https://dil-milao.vercel.app",
+    siteName: "Dil Milao",
+    images: [{ url: "https://dil-milao.vercel.app/og-image.png", width: 1200, height: 630, alt: "Dil Milao — Indian Dating App" }],
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dil Milao — Indian Dating App",
+    description: "Find your perfect match. India's modern dating app for genuine connections.",
+    images: ["https://dil-milao.vercel.app/og-image.png"],
+  },
+};
 
 const TESTIMONIALS = [
   {
