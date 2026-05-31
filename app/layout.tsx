@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   creator: "Dil Milao",
   publisher: "Dil Milao",
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  verification: { google: "4e29c7721eacfc4d" },
   alternates: { canonical: SITE_URL },
   appleWebApp: {
     capable: true,
