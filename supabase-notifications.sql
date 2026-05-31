@@ -41,7 +41,15 @@ create policy "Users can delete their own notifications"
   using (auth.uid() = user_id);
 
 -- Enable realtime so the bell updates live
-alter publication supabase_realtime add table public.notifications;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;
 
 -- ─── Trigger: new message → notify receiver ───────────────────────────────
 -- Only fires once per unread conversation (no spam when messages come fast)
