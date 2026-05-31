@@ -86,6 +86,7 @@ export default function PremiumPage() {
   const [userEmail, setUserEmail] = useState("");
   const [isPremium, setIsPremium] = useState(false);
   const [premiumExpires, setPremiumExpires] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [trialUsed, setTrialUsed] = useState(false);
   const [boostCredits, setBoostCredits] = useState(0);
   const [boostActiveUntil, setBoostActiveUntil] = useState<string | null>(null);
@@ -112,13 +113,19 @@ export default function PremiumPage() {
         setPremiumExpires(data.premium_expires_at);
       }
 
-      // Check if user has ever used the trial
-      const { count: trialCount } = await supabase
+      // Load latest payment plan + check trial usage
+      const { data: payments } = await supabase
         .from("payments")
-        .select("id", { count: "exact", head: true })
+        .select("plan")
         .eq("user_id", user.id)
-        .eq("plan", "trial");
-      setTrialUsed((trialCount ?? 0) > 0);
+        .eq("status", "success")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      const planNames = payments?.map((p) => p.plan) || [];
+      setTrialUsed(planNames.includes("trial"));
+      const latestPremiumPlan = planNames.find((p) => ["gold", "platinum", "trial"].includes(p));
+      if (latestPremiumPlan) setCurrentPlan(latestPremiumPlan);
 
       setBoostCredits(data?.boost_credits ?? 0);
       if (data?.boost_active_until && new Date(data.boost_active_until) > new Date()) {
@@ -245,15 +252,26 @@ export default function PremiumPage() {
 
         {/* Active premium banner */}
         {isPremium && premiumExpires && (
-          <div className="mb-6 p-4 rounded-2xl flex items-center gap-3"
+          <div className="mb-6 p-4 rounded-2xl"
             style={{ background: "rgba(249,202,36,0.08)", border: "1px solid rgba(249,202,36,0.3)" }}>
-            <Crown size={20} className="text-yellow-400 flex-shrink-0" />
-            <div>
-              <p className="text-yellow-400 font-semibold text-sm">You&apos;re a Premium member!</p>
-              <p className="text-white/40 text-xs">
-                Active until {new Date(premiumExpires).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
+            <div className="flex items-center gap-3 mb-2">
+              <Crown size={20} className="text-yellow-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-yellow-400 font-semibold text-sm capitalize">
+                  You&apos;re a {currentPlan ?? "Premium"} member!
+                </p>
+                <p className="text-white/40 text-xs">
+                  Active until {new Date(premiumExpires).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-black"
+                style={{ background: "linear-gradient(135deg, #f9ca24, #f0932b)" }}>
+                ACTIVE
+              </span>
             </div>
+            <p className="text-white/25 text-xs ml-8">
+              One-time payment — does not auto-renew. Renew before expiry to keep your benefits.
+            </p>
           </div>
         )}
 
