@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown, Info, MoreVertical, Flag, ShieldX } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Heart, X, Star, MapPin, Zap, SlidersHorizontal, ChevronDown, Info, MoreVertical, Flag, ShieldX, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -30,6 +31,7 @@ function getInitials(name: string) {
 }
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
@@ -48,6 +50,7 @@ export default function DiscoverPage() {
   const [boostCredits, setBoostCredits] = useState(0);
   const [boostActiveUntil, setBoostActiveUntil] = useState<Date | null>(null);
   const [boostLoading, setBoostLoading] = useState(false);
+  const [myProfile, setMyProfile] = useState<{ photo_url: string; bio: string } | null>(null);
 
   const dragStartX = useRef<number | null>(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
@@ -207,9 +210,11 @@ export default function DiscoverPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_premium, premium_expires_at, looking_for, boost_credits, boost_active_until")
+        .select("is_premium, premium_expires_at, looking_for, boost_credits, boost_active_until, photo_url, bio")
         .eq("id", user.id)
         .single();
+
+      setMyProfile({ photo_url: profile?.photo_url || "", bio: profile?.bio || "" });
 
       const premiumActive =
         profile?.is_premium === true &&
@@ -661,6 +666,21 @@ export default function DiscoverPage() {
               Clear
             </button>
           </div>
+        )}
+
+        {/* Profile completeness nudge */}
+        {myProfile && (!myProfile.photo_url || !myProfile.bio) && (
+          <button
+            onClick={() => router.push("/setup")}
+            className="w-full mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.1), rgba(238,90,36,0.1))", border: "1px solid rgba(255,107,107,0.2)" }}
+          >
+            <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
+            <p className="text-white/70 text-sm flex-1">
+              {!myProfile.photo_url ? "Add a photo to get 3× more matches" : "Add a bio to stand out"}
+            </p>
+            <span className="text-red-400 text-xs font-semibold">Fix →</span>
+          </button>
         )}
 
         {/* Boost bar */}

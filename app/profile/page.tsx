@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings, Camera } from "lucide-react";
+import { MapPin, Edit3, LogOut, Crown, Heart, Zap, Settings, Camera, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -114,6 +114,28 @@ export default function ProfilePage() {
       </button>
 
       <div className="max-w-md mx-auto px-4 pt-6">
+        {/* Profile completeness nudge */}
+        {(!profile?.photo_url || !profile?.bio) && (
+          <button
+            onClick={() => router.push("/setup")}
+            className="w-full mb-5 flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.12))", border: "1px solid rgba(255,107,107,0.25)" }}
+          >
+            <AlertCircle size={18} className="text-red-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-white/90 text-sm font-medium">Complete your profile</p>
+              <p className="text-white/40 text-xs mt-0.5">
+                {!profile?.photo_url && !profile?.bio
+                  ? "Add a photo and bio to get 3× more matches"
+                  : !profile?.photo_url
+                  ? "Add a photo to get 3× more matches"
+                  : "Add a bio to stand out to potential matches"}
+              </p>
+            </div>
+            <span className="text-red-400 text-xs font-semibold flex-shrink-0">Complete →</span>
+          </button>
+        )}
+
         {/* Profile header */}
         <div className="text-center mb-8">
           <div className="relative inline-block mb-4">
