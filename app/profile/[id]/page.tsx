@@ -28,6 +28,8 @@ export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [imgErr, setImgErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -38,16 +40,26 @@ export default function UserProfilePage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const [{ data: userData }, { data }] = await Promise.all([
+      const [{ data: userData }, { data }, { data: extraPhotos }] = await Promise.all([
         supabase.auth.getUser(),
         supabase
           .from("profiles")
           .select("full_name, age, city, state, bio, interests, photo_url, gender, religion")
           .eq("id", id)
           .single(),
+        supabase
+          .from("profile_photos")
+          .select("photo_url, sort_order")
+          .eq("user_id", id)
+          .order("sort_order", { ascending: true }),
       ]);
       setMyUserId(userData.user?.id ?? null);
       setProfile(data);
+      if (extraPhotos?.length) {
+        setPhotos(extraPhotos.map((p: { photo_url: string }) => p.photo_url));
+      } else if (data?.photo_url) {
+        setPhotos([data.photo_url]);
+      }
       setLoading(false);
     }
     load();
@@ -135,11 +147,11 @@ export default function UserProfilePage() {
       </header>
 
       <div className="max-w-md mx-auto px-4 pt-4">
-        {/* Photo */}
+        {/* Photo carousel */}
         <div className="relative rounded-3xl overflow-hidden mb-4" style={{ height: 400 }}>
-          {profile.photo_url && !imgErr ? (
+          {photos.length > 0 && !imgErr ? (
             <Image
-              src={profile.photo_url}
+              src={photos[photoIndex]}
               alt={profile.full_name}
               fill
               className="object-cover"
@@ -159,6 +171,31 @@ export default function UserProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Photo navigation */}
+          {photos.length > 1 && (
+            <>
+              <button
+                className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
+                onClick={() => { setPhotoIndex((i) => Math.max(0, i - 1)); setImgErr(false); }}
+              />
+              <button
+                className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
+                onClick={() => { setPhotoIndex((i) => Math.min(photos.length - 1, i + 1)); setImgErr(false); }}
+              />
+              {/* Dot indicators */}
+              <div className="absolute top-3 left-0 right-0 flex justify-center gap-1 z-20 px-4">
+                {photos.map((_, dotIdx) => (
+                  <div
+                    key={dotIdx}
+                    className="flex-1 h-0.5 rounded-full transition-all"
+                    style={{ background: dotIdx === photoIndex ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)", maxWidth: 40 }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Bottom overlay */}
           <div
             className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-16"

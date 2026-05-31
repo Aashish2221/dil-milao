@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Camera, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
+import { Heart, MapPin, ChevronRight, X, ChevronDown, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import Image from "next/image";
 import { STATES, getDistricts } from "@/lib/india-data";
@@ -13,6 +13,11 @@ const INTERESTS = [
 ];
 
 const PRESET_RELIGIONS = ["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi", "Swaminarayan"];
+const MAX_PHOTOS = 6;
+
+type PhotoSlot = { file: File | null; preview: string; existing: string };
+
+function emptySlot(): PhotoSlot { return { file: null, preview: "", existing: "" }; }
 
 export default function SetupPage() {
   const router = useRouter();
@@ -20,11 +25,11 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [initialising, setInitialising] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photos, setPhotos] = useState<PhotoSlot[]>(Array.from({ length: MAX_PHOTOS }, emptySlot));
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [showCustomReligion, setShowCustomReligion] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeSlot, setActiveSlot] = useState(0);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -36,10 +41,8 @@ export default function SetupPage() {
     state: "",
     city: "",
     interests: [] as string[],
-    photo_url: "",
   });
 
-  // Derived districts based on selected state
   const districts = form.state ? getDistricts(form.state) : [];
 
   useEffect(() => {
@@ -68,9 +71,28 @@ export default function SetupPage() {
           state: profile.state || "",
           city: profile.city || "",
           interests: profile.interests || [],
-          photo_url: profile.photo_url || "",
         });
-        if (profile.photo_url) setPhotoPreview(profile.photo_url);
+
+        // Load extra photos from profile_photos table
+        const { data: extraPhotos } = await supabase
+          .from("profile_photos")
+          .select("photo_url, sort_order")
+          .eq("user_id", user.id)
+          .order("sort_order", { ascending: true });
+
+        const slots = Array.from({ length: MAX_PHOTOS }, emptySlot);
+        // Primary photo in slot 0
+        if (profile.photo_url) {
+          slots[0] = { file: null, preview: profile.photo_url, existing: profile.photo_url };
+        }
+        // Extra photos in slots 1+
+        extraPhotos?.forEach((ep, idx) => {
+          const slot = idx + 1;
+          if (slot < MAX_PHOTOS) {
+            slots[slot] = { file: null, preview: ep.photo_url, existing: ep.photo_url };
+          }
+        });
+        setPhotos(slots);
       }
       setInitialising(false);
     }
@@ -86,52 +108,91 @@ export default function SetupPage() {
     }));
   }
 
+  function openFilePicker(slotIndex: number) {
+    setActiveSlot(slotIndex);
+    fileInputRef.current?.click();
+  }
+
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { alert("Please select an image file (JPG, PNG, etc.)"); return; }
     if (file.size > 5 * 1024 * 1024) { alert("Photo must be less than 5MB"); return; }
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-  }
-
-  function removePhoto() {
-    setPhotoFile(null);
-    setPhotoPreview(null);
-    setForm((f) => ({ ...f, photo_url: "" }));
+    const preview = URL.createObjectURL(file);
+    setPhotos((prev) => {
+      const next = [...prev];
+      next[activeSlot] = { file, preview, existing: next[activeSlot].existing };
+      return next;
+    });
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function uploadPhoto(userId: string): Promise<string> {
-    if (!photoFile) return "";
-    setUploadingPhoto(true);
+  function removePhoto(slotIndex: number) {
+    setPhotos((prev) => {
+      const next = [...prev];
+      next[slotIndex] = emptySlot();
+      // Compact: shift later photos forward to fill gap
+      for (let i = slotIndex; i < MAX_PHOTOS - 1; i++) {
+        if (next[i + 1].preview) {
+          next[i] = next[i + 1];
+          next[i + 1] = emptySlot();
+        } else break;
+      }
+      return next;
+    });
+  }
+
+  async function uploadPhotoFile(userId: string, file: File, slot: number): Promise<string> {
     const supabase = createClient();
-    const ext = photoFile.name.split(".").pop();
-    const path = `${userId}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true });
-    if (error) { setUploadingPhoto(false); return ""; }
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${userId}/photo_${slot}.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (error) return "";
     const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-    setUploadingPhoto(false);
     return data.publicUrl;
   }
 
   async function handleFinish() {
     setLoading(true);
+    setUploadingPhotos(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    if (!user) { setLoading(false); setUploadingPhotos(false); return; }
 
-    let photo_url = form.photo_url;
-    if (photoFile) photo_url = await uploadPhoto(user.id);
+    // Upload any new files
+    const resolvedUrls: string[] = [];
+    for (let i = 0; i < MAX_PHOTOS; i++) {
+      const slot = photos[i];
+      if (!slot.preview) break; // no more photos
+      if (slot.file) {
+        const url = await uploadPhotoFile(user.id, slot.file, i);
+        resolvedUrls.push(url || slot.existing);
+      } else {
+        resolvedUrls.push(slot.existing || slot.preview);
+      }
+    }
 
+    setUploadingPhotos(false);
+
+    const primaryUrl = resolvedUrls[0] || "";
+
+    // Save profile
     await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email,
       ...form,
-      photo_url,
+      photo_url: primaryUrl,
       age: parseInt(form.age),
       updated_at: new Date().toISOString(),
     });
+
+    // Sync extra photos (sort_order 0, 1, 2, …)
+    await supabase.from("profile_photos").delete().eq("user_id", user.id);
+    if (resolvedUrls.length > 0) {
+      await supabase.from("profile_photos").insert(
+        resolvedUrls.map((url, idx) => ({ user_id: user.id, photo_url: url, sort_order: idx }))
+      );
+    }
 
     router.push(isEditing ? "/profile" : "/discover");
   }
@@ -143,6 +204,8 @@ export default function SetupPage() {
       </div>
     );
   }
+
+  const hasMainPhoto = !!photos[0].preview;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(135deg, #0a0a0f, #1a0a1e)" }}>
@@ -171,31 +234,49 @@ export default function SetupPage() {
             <div className="space-y-5">
               <h2 className="text-white font-semibold text-xl mb-4">Basic Info</h2>
 
-              {/* Photo */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative">
-                  {photoPreview ? (
-                    <>
-                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-red-400/50">
-                        <Image src={photoPreview} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
+              {/* Photo grid */}
+              <div className="mb-6">
+                <p className="text-white/60 text-sm mb-3">Photos <span className="text-white/30">(up to 6 — first is your main photo)</span></p>
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
+                    const slot = photos[i];
+                    const hasPhoto = !!slot.preview;
+                    const canAdd = !hasPhoto && (i === 0 || !!photos[i - 1].preview);
+                    return (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                        {hasPhoto ? (
+                          <>
+                            <Image src={slot.preview} alt={`Photo ${i + 1}`} fill className="object-cover" sizes="120px" />
+                            {i === 0 && (
+                              <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-white"
+                                style={{ background: "rgba(0,0,0,0.6)" }}>Main</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removePhoto(i)}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
+                            >
+                              <X size={12} className="text-white" />
+                            </button>
+                          </>
+                        ) : canAdd ? (
+                          <button
+                            type="button"
+                            onClick={() => openFilePicker(i)}
+                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-white/10 transition-colors"
+                          >
+                            <Plus size={20} className="text-white/30" />
+                            <span className="text-white/20 text-[10px]">{i === 0 ? "Add photo" : "Add"}</span>
+                          </button>
+                        ) : (
+                          <div className="w-full h-full" />
+                        )}
                       </div>
-                      <button type="button" onClick={removePhoto} className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-                        <X size={12} className="text-white" />
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-full bg-white/10 border-2 border-dashed border-white/20 flex flex-col items-center justify-center hover:border-red-400/50 hover:bg-white/15 transition-all">
-                      <Camera size={24} className="text-white/40 mb-1" />
-                      <span className="text-white/40 text-xs">Add Photo</span>
-                    </button>
-                  )}
+                    );
+                  })}
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoSelect} className="hidden" />
-                {photoPreview ? (
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-red-400/70 text-xs mt-2 hover:text-red-400 transition-colors">Change photo</button>
-                ) : (
-                  <p className="text-white/30 text-xs mt-2">JPG or PNG, max 5MB (optional)</p>
-                )}
               </div>
 
               {/* Full Name */}
@@ -409,15 +490,19 @@ export default function SetupPage() {
                 <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl text-white/60 glass hover:text-white transition-colors">Back</button>
                 <button
                   onClick={handleFinish}
-                  disabled={loading || uploadingPhoto || form.interests.length === 0}
+                  disabled={loading || uploadingPhotos || form.interests.length === 0}
                   className="btn-primary flex-1 py-3 rounded-xl text-white font-semibold disabled:opacity-40"
                 >
-                  {uploadingPhoto ? "Uploading photo..." : loading ? "Saving..." : isEditing ? "Save Changes" : "Start Matching!"}
+                  {uploadingPhotos ? "Uploading photos…" : loading ? "Saving…" : isEditing ? "Save Changes" : "Start Matching!"}
                 </button>
               </div>
             </div>
           )}
         </div>
+
+        {!hasMainPhoto && step === 1 && (
+          <p className="text-white/25 text-xs text-center mt-4">You can add a photo now or later from your profile</p>
+        )}
       </div>
     </div>
   );

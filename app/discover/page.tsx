@@ -20,6 +20,7 @@ type Profile = {
   interests: string[];
   photo_url: string;
   religion: string;
+  photos?: string[];
 };
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
@@ -40,6 +41,7 @@ export default function DiscoverPage() {
   const [superLikeAlert, setSuperLikeAlert] = useState(false);
   const [superLikeCount, setSuperLikeCount] = useState(0);
   const [photoError, setPhotoError] = useState(false);
+  const [cardPhotoIndex, setCardPhotoIndex] = useState(0);
   const [cardMenuOpen, setCardMenuOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -125,7 +127,27 @@ export default function DiscoverPage() {
     }
 
     const { data } = await query;
-    return data || [];
+    const rows = data || [];
+    if (rows.length === 0) return rows;
+
+    // Enrich with extra photos from profile_photos table
+    const ids = rows.map((r: Profile) => r.id);
+    const { data: extraPhotos } = await supabase
+      .from("profile_photos")
+      .select("user_id, photo_url, sort_order")
+      .in("user_id", ids)
+      .order("sort_order", { ascending: true });
+
+    const photoMap: Record<string, string[]> = {};
+    extraPhotos?.forEach((ep: { user_id: string; photo_url: string; sort_order: number }) => {
+      if (!photoMap[ep.user_id]) photoMap[ep.user_id] = [];
+      photoMap[ep.user_id].push(ep.photo_url);
+    });
+
+    return rows.map((r: Profile) => ({
+      ...r,
+      photos: photoMap[r.id]?.length ? photoMap[r.id] : (r.photo_url ? [r.photo_url] : []),
+    }));
   }, []);
 
   const loadProfiles = useCallback(async (
@@ -284,7 +306,7 @@ export default function DiscoverPage() {
     await supabase.from("blocks").insert({ blocker_id: userId, blocked_id: profileId });
     // Skip to next profile
     setCurrent((c) => c + 1);
-    setPhotoError(false);
+    setPhotoError(false); setCardPhotoIndex(0);
   }
 
   async function handleAction(type: "like" | "skip") {
@@ -317,7 +339,7 @@ export default function DiscoverPage() {
 
     setTimeout(() => {
       setAction(null);
-      setPhotoError(false);
+      setPhotoError(false); setCardPhotoIndex(0);
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
@@ -372,7 +394,7 @@ export default function DiscoverPage() {
     setTimeout(() => setSuperLikeAlert(false), 2500);
     setTimeout(() => {
       setAction(null);
-      setPhotoError(false);
+      setPhotoError(false); setCardPhotoIndex(0);
       setCurrent((c) => {
         const next = c + 1;
         if (userId && next >= profiles.length - 3) {
@@ -744,13 +766,19 @@ export default function DiscoverPage() {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
             >
+              {(() => {
+                const cardPhotos = profile.photos?.length ? profile.photos : (profile.photo_url ? [profile.photo_url] : []);
+                const photoCount = cardPhotos.length;
+                const safeIdx = Math.min(cardPhotoIndex, Math.max(0, photoCount - 1));
+                const currentPhotoUrl = cardPhotos[safeIdx] || "";
+                return (
               <div
                 className="h-96 flex items-center justify-center relative overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[current % AVATAR_COLORS.length]}22, ${AVATAR_COLORS[(current + 2) % AVATAR_COLORS.length]}22)` }}
               >
-                {profile.photo_url && !photoError ? (
+                {currentPhotoUrl && !photoError ? (
                   <Image
-                    src={profile.photo_url}
+                    src={currentPhotoUrl}
                     alt={profile.full_name}
                     fill
                     className="object-cover"
@@ -765,6 +793,33 @@ export default function DiscoverPage() {
                     {getInitials(profile.full_name)}
                   </div>
                 )}
+
+                {/* Photo navigation tap zones */}
+                {photoCount > 1 && (
+                  <>
+                    <button
+                      className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
+                      onClick={(e) => { e.stopPropagation(); setCardPhotoIndex((i) => Math.max(0, i - 1)); setPhotoError(false); }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
+                      onClick={(e) => { e.stopPropagation(); setCardPhotoIndex((i) => Math.min(photoCount - 1, i + 1)); setPhotoError(false); }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    />
+                    {/* Dot indicators */}
+                    <div className="absolute top-2 left-0 right-0 flex justify-center gap-1 z-20 px-3">
+                      {cardPhotos.map((_, dotIdx) => (
+                        <div
+                          key={dotIdx}
+                          className="flex-1 h-0.5 rounded-full transition-all"
+                          style={{ background: dotIdx === safeIdx ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)", maxWidth: 40 }}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
                 {(action === "like" || dragDeltaX > 40) && (
                   <div
                     className="absolute top-6 left-6 rotate-[-20deg] border-4 border-green-400 text-green-400 font-extrabold text-2xl px-4 py-1 rounded-xl"
@@ -825,6 +880,8 @@ export default function DiscoverPage() {
                   )}
                 </div>
               </div>
+                );
+              })()}
 
               <div className="p-5">
                 <h2 className="text-2xl font-bold text-white mb-2">
