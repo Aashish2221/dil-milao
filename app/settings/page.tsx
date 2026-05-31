@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, Lock, Trash2, ChevronRight, LogOut, ShieldCheck, FileText, Flag, ShieldX } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import InviteFriends from "@/components/InviteFriends";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -205,6 +206,9 @@ export default function SettingsPage() {
             </Link>
           </section>
         )}
+
+        {/* Invite Friends */}
+        <InviteFriends />
 
         {/* Legal */}
         <section className="glass rounded-2xl overflow-hidden">

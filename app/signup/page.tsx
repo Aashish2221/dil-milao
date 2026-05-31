@@ -26,6 +26,9 @@ export default function SignupPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [referralCode] = useState(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem("referral_code") || "" : ""
+  );
 
   const age = birthYear && birthMonth ? calcAge(parseInt(birthYear), parseInt(birthMonth) - 1) : null;
   const tooYoung = age !== null && age < 18;
@@ -54,6 +57,24 @@ export default function SignupPage() {
           full_name: name,
           age,
         });
+
+        // Process referral if code was stored
+        if (referralCode) {
+          const { data: referrer } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("referral_code", referralCode)
+            .neq("id", data.user.id)
+            .single();
+          if (referrer) {
+            await supabase.from("referrals").insert({
+              referrer_id: referrer.id,
+              referred_id: data.user.id,
+            });
+            await supabase.rpc("increment_bonus_likes", { uid: referrer.id, amount: 5 });
+          }
+          sessionStorage.removeItem("referral_code");
+        }
       }
       router.push("/setup");
     }

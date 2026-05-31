@@ -51,6 +51,7 @@ export default function DiscoverPage() {
   const [boostActiveUntil, setBoostActiveUntil] = useState<Date | null>(null);
   const [boostLoading, setBoostLoading] = useState(false);
   const [myProfile, setMyProfile] = useState<{ photo_url: string; bio: string } | null>(null);
+  const [bonusLikes, setBonusLikes] = useState(0);
 
   const dragStartX = useRef<number | null>(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
@@ -73,7 +74,7 @@ export default function DiscoverPage() {
 
   const filterDistricts = filterState ? getDistricts(filterState) : [];
 
-  const FREE_LIKES = 3;
+  const FREE_LIKES = 3 + bonusLikes;
   const FREE_SUPER_LIKES = 1;
   const PREMIUM_SUPER_LIKES = 5;
   const superLikeLimit = isPremium ? PREMIUM_SUPER_LIKES : FREE_SUPER_LIKES;
@@ -210,11 +211,12 @@ export default function DiscoverPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_premium, premium_expires_at, looking_for, boost_credits, boost_active_until, photo_url, bio")
+        .select("is_premium, premium_expires_at, looking_for, boost_credits, boost_active_until, photo_url, bio, bonus_likes")
         .eq("id", user.id)
         .single();
 
       setMyProfile({ photo_url: profile?.photo_url || "", bio: profile?.bio || "" });
+      setBonusLikes(profile?.bonus_likes ?? 0);
 
       const premiumActive =
         profile?.is_premium === true &&
