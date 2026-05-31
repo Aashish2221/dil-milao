@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Heart, Star, Shield, Zap, Users, MessageCircle, MapPin, Check } from "lucide-react";
+import { Heart, Star, Shield, Zap, Users, MessageCircle, MapPin, Check, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
+import StickySignupBar from "@/components/StickySignupBar";
 
 export const metadata: Metadata = {
   title: "Dil Milao — Indian Dating App | Find Your Match",
@@ -99,27 +100,36 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="text-center px-6 pt-20 pb-12 fade-in">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-orange-300 mb-8">
-          <Zap size={14} />
-          India&apos;s fastest growing dating app
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-orange-300 mb-4">
+          <TrendingUp size={14} />
+          <span>🔥 <strong>1,200+ new profiles</strong> joined this week</span>
         </div>
         <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
           <span className="text-white">Find Your</span>
           <br />
           <span className="gradient-text">Dil Ka Rishta</span>
         </h1>
-        <p className="text-lg md:text-xl text-white/60 max-w-xl mx-auto mb-10">
+        <p className="text-lg md:text-xl text-white/60 max-w-xl mx-auto mb-6">
           Connect with genuine Indians aged 18–30. Modern dating, real connections, Indian values.
         </p>
+        {/* City trust row */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-white/35 text-xs">
+          {["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune", "Chennai", "Kolkata", "Jaipur"].map((city) => (
+            <span key={city} className="flex items-center gap-1">
+              <MapPin size={9} />{city}
+            </span>
+          ))}
+          <span className="text-white/20">& 500+ more cities</span>
+        </div>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/signup" className="btn-primary px-8 py-4 rounded-full text-lg font-bold text-white inline-flex items-center gap-2">
-            <Heart size={20} fill="white" /> Start Matching — Free
+          <Link href="/signup" className="btn-primary px-8 py-4 rounded-full text-lg font-bold text-white inline-flex items-center gap-2 heartbeat">
+            <Heart size={20} fill="white" /> Join Free — Find Matches Now
           </Link>
           <Link href="/login" className="px-8 py-4 rounded-full text-lg font-medium glass text-white/80 hover:text-white transition-colors">
-            I already have an account
+            Already have an account
           </Link>
         </div>
-        <p className="text-white/30 text-sm mt-5">No credit card needed • Free forever</p>
+        <p className="text-white/30 text-sm mt-5">No credit card • Takes 2 minutes • 100% free</p>
       </section>
 
       {/* Floating profile cards */}
@@ -151,6 +161,45 @@ export default function LandingPage() {
         <div className="text-center mt-6">
           <div className="inline-flex items-center gap-2 btn-primary px-5 py-2.5 rounded-full text-sm font-semibold text-white">
             <Heart size={14} fill="white" /> 3 new matches today!
+          </div>
+        </div>
+      </section>
+
+      {/* Live activity ticker */}
+      <section className="pb-10 overflow-hidden">
+        <div className="relative">
+          <div className="flex gap-6 animate-marquee whitespace-nowrap" style={{ animation: "marquee 28s linear infinite" }}>
+            {[
+              "💕 Rahul from Delhi matched with Priya",
+              "🌟 Sneha from Mumbai got 18 likes today",
+              "💬 Arjun & Kavya started chatting",
+              "❤️ Riya from Bangalore found her match",
+              "🎉 Vikram joined from Hyderabad",
+              "💕 Ananya from Pune matched with Rohit",
+              "🌟 Meera from Chennai got 24 likes today",
+              "💬 Siddharth & Pooja started chatting",
+            ].map((item, i) => (
+              <span key={i} className="inline-flex items-center gap-2 text-white/40 text-sm flex-shrink-0">
+                {item}
+                <span className="text-white/15 mx-2">•</span>
+              </span>
+            ))}
+            {/* Duplicate for seamless loop */}
+            {[
+              "💕 Rahul from Delhi matched with Priya",
+              "🌟 Sneha from Mumbai got 18 likes today",
+              "💬 Arjun & Kavya started chatting",
+              "❤️ Riya from Bangalore found her match",
+              "🎉 Vikram joined from Hyderabad",
+              "💕 Ananya from Pune matched with Rohit",
+              "🌟 Meera from Chennai got 24 likes today",
+              "💬 Siddharth & Pooja started chatting",
+            ].map((item, i) => (
+              <span key={`b-${i}`} className="inline-flex items-center gap-2 text-white/40 text-sm flex-shrink-0">
+                {item}
+                <span className="text-white/15 mx-2">•</span>
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -280,17 +329,25 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto glass rounded-3xl p-12">
           <Heart size={48} className="text-red-400 mx-auto mb-6 heartbeat" fill="#ff6b6b" />
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to find your match?
+            Your match is already here.
           </h2>
-          <p className="text-white/50 mb-8">Join 2 lakh+ Indians already on Dil Milao. It&apos;s free.</p>
+          <p className="text-white/50 mb-3">Join 2 lakh+ Indians already on Dil Milao. 100% free.</p>
+          <p className="text-orange-300/70 text-sm mb-8">⏳ New profiles from your city join every day — don&apos;t miss them.</p>
           <Link href="/signup" className="btn-primary px-10 py-4 rounded-full text-lg font-bold text-white inline-block">
             Create Free Account
           </Link>
+          <p className="text-white/25 text-xs mt-4">2 minutes to set up • No credit card needed</p>
         </div>
       </section>
 
+      {/* Sticky mobile CTA */}
+      <StickySignupBar />
+
+      {/* Marquee keyframe */}
+      <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+
       {/* Footer */}
-      <footer className="border-t border-white/5 px-6 py-10">
+      <footer className="border-t border-white/5 px-6 py-10 pb-24 md:pb-10">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-white/30 text-sm">
           <div className="flex items-center gap-2">
             <Heart size={16} className="text-red-400" fill="#ff6b6b" />
