@@ -156,6 +156,7 @@ export default function UserProfilePage() {
               fill
               className="object-cover"
               sizes="(max-width: 448px) 100vw, 448px"
+              priority={photoIndex === 0}
               onError={() => setImgErr(true)}
             />
           ) : (

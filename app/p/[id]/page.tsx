@@ -82,6 +82,7 @@ export default async function PublicProfilePage({ params }: Props) {
               fill
               className="object-cover"
               sizes="400px"
+              priority
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-6xl font-bold text-white/30">

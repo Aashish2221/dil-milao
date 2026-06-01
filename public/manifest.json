@@ -1,0 +1,30 @@
+{
+  "name": "Dil Milao — Indian Dating App",
+  "short_name": "Dil Milao",
+  "description": "India's modern dating app. Find genuine connections.",
+  "start_url": "/discover",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff6b6b",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "en-IN",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph-image",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dil Milao — Find Your Match"
+    }
+  ]
+}

@@ -86,6 +86,13 @@ export default function RootLayout({
   return (
     <html lang="en-IN" className="h-full">
       <head>
+        {/* Preconnect to Supabase for faster image & API loads */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        {/* PWA manifest & icons */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -805,6 +805,7 @@ export default function DiscoverPage() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 448px) 100vw, 448px"
+                    priority={current === 0}
                     onError={() => setPhotoError(true)}
                   />
                 ) : (
