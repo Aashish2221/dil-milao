@@ -279,62 +279,89 @@ export default function LikedYouPage() {
             <div className="w-8 h-8 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
           </div>
         ) : !isPremium ? (
-          /* Non-premium: blurred teaser + upsell */
+          /* Non-premium: blurred real photos + compelling upsell */
           <div>
+            {/* Blurred real photo grid */}
             {likers.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 mb-5 pointer-events-none select-none">
-                {likers.map((liker, i) => (
-                  <div
-                    key={liker.id}
-                    className="profile-card rounded-2xl overflow-hidden"
-                    style={{ filter: "blur(6px)", opacity: 0.55 }}
-                  >
-                    <div
-                      className="h-44 flex items-center justify-center"
-                      style={{
+              <div className="relative mb-5">
+                <div className="grid grid-cols-2 gap-3 pointer-events-none select-none">
+                  {likers.map((liker, i) => (
+                    <div key={liker.id} className="profile-card rounded-2xl overflow-hidden relative">
+                      {/* Real photo, heavily blurred */}
+                      <div className="h-44 relative overflow-hidden" style={{
                         background: `linear-gradient(135deg, ${AVATAR_COLORS[i % AVATAR_COLORS.length]}33, ${AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]}33)`,
-                      }}
-                    >
-                      <div
-                        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold"
-                        style={{
-                          background: `linear-gradient(135deg, ${AVATAR_COLORS[i % AVATAR_COLORS.length]}, ${AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]})`,
-                        }}
-                      >
-                        ?
+                      }}>
+                        {liker.photo_url ? (
+                          <Image
+                            src={liker.photo_url}
+                            alt="Someone liked you"
+                            fill
+                            className="object-cover"
+                            sizes="200px"
+                            style={{ filter: "blur(12px)", transform: "scale(1.1)" }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center" style={{ filter: "blur(8px)" }}>
+                            <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold"
+                              style={{ background: `linear-gradient(135deg, ${AVATAR_COLORS[i % AVATAR_COLORS.length]}, ${AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]})` }}>
+                              {getInitials(liker.full_name)}
+                            </div>
+                          </div>
+                        )}
+                        {/* Lock icon overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+                            <Lock size={18} className="text-white/80" />
+                          </div>
+                        </div>
+                        {liker.super_like && (
+                          <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-bold text-black" style={{ background: "#facc15" }}>
+                            ⭐ Super
+                          </div>
+                        )}
+                      </div>
+                      {/* Blurred name */}
+                      <div className="p-3">
+                        <div className="h-4 rounded mb-1.5" style={{ background: "rgba(255,255,255,0.12)", filter: "blur(4px)" }} />
+                        <div className="h-3 rounded w-2/3" style={{ background: "rgba(255,255,255,0.07)", filter: "blur(3px)" }} />
                       </div>
                     </div>
-                    <div className="p-3">
-                      <div className="h-4 bg-white/15 rounded mb-2" />
-                      <div className="h-3 bg-white/8 rounded w-2/3" />
+                  ))}
+                  {/* If more than shown, show +X more card */}
+                  {totalCount > likers.length && (
+                    <div className="profile-card rounded-2xl overflow-hidden flex flex-col items-center justify-center h-full min-h-[220px]"
+                      style={{ background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.15)" }}>
+                      <p className="text-2xl font-extrabold gradient-text">+{totalCount - likers.length}</p>
+                      <p className="text-white/40 text-xs mt-1">more</p>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="glass rounded-2xl p-6 text-center">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{
-                  background: "linear-gradient(135deg, rgba(249,202,36,0.15), rgba(238,90,36,0.15))",
-                  border: "1px solid rgba(249,202,36,0.3)",
-                }}
-              >
-                <Lock size={24} className="text-yellow-400" />
+            {/* Upsell card */}
+            <div className="rounded-2xl p-6 text-center" style={{ background: "linear-gradient(145deg, #1a1a2e, #16213e)", border: "1px solid rgba(249,202,36,0.25)" }}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: "linear-gradient(135deg, rgba(249,202,36,0.2), rgba(238,90,36,0.2))", border: "1px solid rgba(249,202,36,0.4)" }}>
+                <Crown size={24} className="text-yellow-400" />
               </div>
-              <h2 className="text-white font-bold text-lg mb-2">
-                {totalCount > 0 ? `${totalCount} people liked your profile!` : "Unlock Your Admirers"}
+              <h2 className="text-white font-bold text-xl mb-2">
+                {totalCount > 0
+                  ? <>{totalCount} {totalCount === 1 ? "person" : "people"} liked your profile! 🔥</>
+                  : "See who likes you"}
               </h2>
-              <p className="text-white/40 text-sm mb-5">
-                Upgrade to Premium to see exactly who liked you and like them back instantly.
+              <p className="text-white/50 text-sm mb-2">
+                Unlock Premium to see their photos, names, and like them back — instantly match!
               </p>
-              <a
-                href="/premium"
-                className="btn-primary px-8 py-3 rounded-full text-white font-semibold inline-flex items-center gap-2"
-              >
-                <Crown size={16} /> Go Premium — ₹199/mo
+              {totalCount > 0 && (
+                <p className="text-yellow-400/70 text-xs mb-5">
+                  ⚡ Don&apos;t keep them waiting — matches expire after 7 days
+                </p>
+              )}
+              <a href="/premium" className="btn-primary px-8 py-3.5 rounded-full text-white font-bold inline-flex items-center gap-2 text-sm">
+                <Crown size={15} /> Unlock for ₹5 — Try Premium
               </a>
+              <p className="text-white/20 text-xs mt-3">Cancel anytime · No auto-renewal</p>
             </div>
           </div>
         ) : likers.length === 0 ? (
