@@ -1,15 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
-import { Heart, Compass, MessageCircle, User, Star, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Heart, Compass, MessageCircle, User, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import NotificationBell from "@/components/NotificationBell";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import InstallPrompt from "@/components/InstallPrompt";
 
 const links = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -23,8 +19,6 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [installable, setInstallable] = useState(false);
-  const installPrompt = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -64,34 +58,8 @@ export default function Navbar() {
     let cleanup: (() => void) | undefined;
     init().then((fn) => { cleanup = fn; });
 
-    // Check if the prompt was already captured before React mounted
-    const early = (window as unknown as Record<string, unknown>).__pwaPrompt as BeforeInstallPromptEvent | undefined;
-    if (early) {
-      installPrompt.current = early;
-      setInstallable(true);
-    }
-
-    function onBeforeInstallPrompt(e: Event) {
-      e.preventDefault();
-      installPrompt.current = e as BeforeInstallPromptEvent;
-      setInstallable(true);
-    }
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    window.addEventListener("appinstalled", () => setInstallable(false));
-
-    return () => {
-      cleanup?.();
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    };
+    return () => { cleanup?.(); };
   }, []);
-
-  async function handleInstall() {
-    if (!installPrompt.current) return;
-    await installPrompt.current.prompt();
-    const { outcome } = await installPrompt.current.userChoice;
-    if (outcome === "accepted") setInstallable(false);
-    installPrompt.current = null;
-  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -115,16 +83,6 @@ export default function Navbar() {
           <span className="text-xl font-bold gradient-text">Dil Milao</span>
         </Link>
         <div className="flex items-center gap-1">
-          {installable && (
-            <button
-              onClick={handleInstall}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full btn-primary text-white text-xs font-semibold mr-1"
-              title="Install Dil Milao app"
-            >
-              <Download size={13} />
-              Install App
-            </button>
-          )}
           <NotificationBell />
           <button
             onClick={handleLogout}
@@ -134,6 +92,8 @@ export default function Navbar() {
           </button>
         </div>
       </header>
+
+      <InstallPrompt />
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-white/5 flex justify-around items-center py-2">
