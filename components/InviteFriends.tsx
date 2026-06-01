@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Share2, Copy, Check, Gift, Users } from "lucide-react";
+import { Share2, Copy, Check, Gift, Users, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import Link from "next/link";
 
 export default function InviteFriends() {
   const [referralCode, setReferralCode] = useState("");
@@ -74,12 +75,17 @@ export default function InviteFriends() {
         </div>
 
         {/* Stats */}
-        {referralCount > 0 && (
-          <div className="flex items-center gap-2 mb-4 text-white/50 text-sm">
-            <Users size={14} className="text-green-400" />
-            <span><span className="text-green-400 font-semibold">{referralCount}</span> friend{referralCount !== 1 ? "s" : ""} joined using your link</span>
-          </div>
-        )}
+        <div className="flex items-center justify-between mb-4">
+          {referralCount > 0 && (
+            <div className="flex items-center gap-2 text-white/50 text-sm">
+              <Users size={14} className="text-green-400" />
+              <span><span className="text-green-400 font-semibold">{referralCount}</span> friend{referralCount !== 1 ? "s" : ""} joined</span>
+            </div>
+          )}
+          <Link href="/leaderboard" className="ml-auto flex items-center gap-1.5 text-yellow-400/70 hover:text-yellow-400 text-xs font-semibold transition-colors">
+            <Trophy size={13} /> View Leaderboard
+          </Link>
+        </div>
 
         {/* Referral link */}
         <div className="flex items-center gap-2 p-3 rounded-xl mb-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
