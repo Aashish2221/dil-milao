@@ -348,17 +348,43 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 px-6 py-10 pb-24 md:pb-10">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-white/30 text-sm">
-          <div className="flex items-center gap-2">
-            <Heart size={16} className="text-red-400" fill="#ff6b6b" />
-            <span className="font-semibold text-white/50">Dil Milao</span>
+        <div className="max-w-4xl mx-auto space-y-6 text-white/30 text-sm">
+          {/* City links for SEO */}
+          <div className="text-center">
+            <p className="text-white/20 text-xs mb-3 uppercase tracking-wider">Dating App by City</p>
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+              {[
+                ["mumbai", "Mumbai"],
+                ["delhi", "Delhi"],
+                ["bangalore", "Bangalore"],
+                ["hyderabad", "Hyderabad"],
+                ["pune", "Pune"],
+                ["chennai", "Chennai"],
+                ["kolkata", "Kolkata"],
+                ["jaipur", "Jaipur"],
+                ["ahmedabad", "Ahmedabad"],
+                ["lucknow", "Lucknow"],
+                ["chandigarh", "Chandigarh"],
+                ["surat", "Surat"],
+              ].map(([slug, name]) => (
+                <Link key={slug} href={`/city/${slug}`} className="hover:text-white/60 transition-colors">
+                  Dating in {name}
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-6">
-            <Link href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</Link>
-            <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
-            <Link href="/login" className="hover:text-white/60 transition-colors">Login</Link>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <Heart size={16} className="text-red-400" fill="#ff6b6b" />
+              <span className="font-semibold text-white/50">Dil Milao</span>
+            </div>
+            <div className="flex gap-6">
+              <Link href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</Link>
+              <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
+              <Link href="/login" className="hover:text-white/60 transition-colors">Login</Link>
+            </div>
+            <p>© 2026 Dil Milao. Made with ❤️ for India.</p>
           </div>
-          <p>© 2026 Dil Milao. Made with ❤️ for India.</p>
         </div>
       </footer>
     </div>
