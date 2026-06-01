@@ -36,6 +36,8 @@ export default function Navbar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      supabase.from("profiles").update({ last_active: new Date().toISOString() }).eq("id", user.id).then(() => {});
+
       await fetchUnread(user.id);
 
       const channel = supabase

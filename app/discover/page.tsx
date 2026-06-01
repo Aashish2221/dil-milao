@@ -23,7 +23,16 @@ type Profile = {
   photo_url: string;
   religion: string;
   photos?: string[];
+  last_active?: string | null;
 };
+
+function getActiveLabel(lastActive: string | null | undefined): string | null {
+  if (!lastActive) return null;
+  const hours = (Date.now() - new Date(lastActive).getTime()) / 3600000;
+  if (hours < 24) return "Active today";
+  if (hours < 168) return "Active this week";
+  return null;
+}
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
@@ -919,6 +928,12 @@ export default function DiscoverPage() {
                   {profile.religion && (
                     <span className="px-2.5 py-1 rounded-full text-xs glass text-white/60 border border-white/10">
                       {profile.religion}
+                    </span>
+                  )}
+                  {getActiveLabel(profile.last_active) && (
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", color: "#4ade80" }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                      {getActiveLabel(profile.last_active)}
                     </span>
                   )}
                 </div>

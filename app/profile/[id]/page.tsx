@@ -16,7 +16,16 @@ type Profile = {
   photo_url: string;
   gender: string;
   religion: string;
+  last_active?: string | null;
 };
+
+function getActiveLabel(lastActive: string | null | undefined): string | null {
+  if (!lastActive) return null;
+  const hours = (Date.now() - new Date(lastActive).getTime()) / 3600000;
+  if (hours < 24) return "Active today";
+  if (hours < 168) return "Active this week";
+  return null;
+}
 
 const AVATAR_COLORS = ["#ff6b6b", "#6b9eff", "#6bffb8", "#ffb86b", "#b86bff"];
 
@@ -44,7 +53,7 @@ export default function UserProfilePage() {
         supabase.auth.getUser(),
         supabase
           .from("profiles")
-          .select("full_name, age, city, state, bio, interests, photo_url, gender, religion")
+          .select("full_name, age, city, state, bio, interests, photo_url, gender, religion, last_active")
           .eq("id", id)
           .single(),
         supabase
@@ -209,6 +218,12 @@ export default function UserProfilePage() {
               <MapPin size={13} />
               <span>{[profile.city, profile.state].filter(Boolean).join(", ")}</span>
             </div>
+            {getActiveLabel(profile.last_active) && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 inline-block" style={{ boxShadow: "0 0 6px #4ade80" }} />
+                <span className="text-green-400 text-xs font-medium">{getActiveLabel(profile.last_active)}</span>
+              </div>
+            )}
           </div>
         </div>
 
