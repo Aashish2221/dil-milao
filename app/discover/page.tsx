@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import ReportModal from "@/components/ReportModal";
+import OnboardingTour from "@/components/OnboardingTour";
 import { createClient } from "@/lib/supabase";
 import { STATES, getDistricts } from "@/lib/india-data";
 
@@ -445,6 +446,7 @@ export default function DiscoverPage() {
   return (
     <div className="min-h-screen pb-20" style={{ background: "#0a0a0f" }}>
       <Navbar />
+      <OnboardingTour />
 
       {reportTarget && (
         <ReportModal
