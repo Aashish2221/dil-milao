@@ -379,6 +379,7 @@ export default function LandingPage() {
               <span className="font-semibold text-white/50">Dil Milao</span>
             </div>
             <div className="flex gap-6">
+              <Link href="/blog" className="hover:text-white/60 transition-colors">Blog</Link>
               <Link href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</Link>
               <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
               <Link href="/login" className="hover:text-white/60 transition-colors">Login</Link>

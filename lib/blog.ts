@@ -1,0 +1,215 @@
+export type BlogPost = {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  readTime: string;
+  category: string;
+  keywords: string[];
+  content: Section[];
+};
+
+export type Section = {
+  type: "h2" | "h3" | "p" | "ul" | "cta";
+  text?: string;
+  items?: string[];
+};
+
+export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "best-dating-apps-india-2026",
+    title: "Best Dating Apps in India 2026: Find Real Love Online",
+    description: "Looking for the best dating app in India? We compare the top Indian dating apps in 2026 — features, pricing, and which one actually helps you find a serious relationship.",
+    date: "2026-05-20",
+    readTime: "6 min read",
+    category: "Dating Apps",
+    keywords: ["best dating apps in India", "dating apps India 2026", "Indian dating app", "top dating apps India", "dating site India"],
+    content: [
+      { type: "p", text: "Finding love in India has changed. Gone are the days of relying only on family introductions or chance encounters. Today, millions of young Indians use dating apps to find genuine connections — and the options have never been better." },
+      { type: "h2", text: "What to Look for in an Indian Dating App" },
+      { type: "p", text: "Not all dating apps are built the same. Global apps like Tinder or Bumble work well abroad but often miss what Indian users actually need: the ability to filter by religion, mother tongue, city, and whether someone is looking for a serious relationship or casual dating." },
+      { type: "ul", items: ["City and state-based filtering", "Religion and language preferences", "Age range controls", "Verified profiles (no fake accounts)", "Privacy features like photo blur", "Affordable pricing in INR"] },
+      { type: "h2", text: "Top Dating Apps in India in 2026" },
+      { type: "h3", text: "1. Dil Milao — Best for Serious Relationships" },
+      { type: "p", text: "Dil Milao is India's fastest-growing dating app, built specifically for Indians aged 18–30. What sets it apart is the depth of filters — you can search by city, state, religion, and even interests. The mutual match system means no one gets unwanted messages. Profiles are verified, and the app is free to join with affordable premium plans starting at ₹5." },
+      { type: "h3", text: "2. Tinder India" },
+      { type: "p", text: "Tinder is globally popular and has a large user base in Indian metros. However, it lacks Indian-specific filters like religion or mother tongue, and many users report a high number of fake profiles. Good for casual connections in big cities." },
+      { type: "h3", text: "3. Bumble" },
+      { type: "p", text: "Bumble lets women message first, which many Indian women appreciate for safety. The user base is growing in Tier-1 cities but remains limited in smaller cities. Pricing is higher than Indian-built alternatives." },
+      { type: "h3", text: "4. Shaadi.com / Jeevansathi" },
+      { type: "p", text: "These are matrimonial sites, not dating apps. They're great if you want family involvement and are ready for marriage. But for casual dating or getting to know someone before deciding, they can feel too formal." },
+      { type: "h2", text: "Which Dating App is Best for Indians in 2026?" },
+      { type: "p", text: "If you want a serious relationship with someone who shares your cultural values and is from your city — Dil Milao is your best bet. The Indian-first design, verified profiles, and deep filtering make it the top choice for young Indians who are serious about finding love." },
+      { type: "cta", text: "Try Dil Milao Free — India's #1 Dating App for Serious Relationships" },
+    ],
+  },
+  {
+    slug: "how-to-write-perfect-dating-profile-india",
+    title: "How to Write a Perfect Dating Profile in India (With Examples)",
+    description: "Your dating profile is your first impression. Learn how to write a bio, choose the right photos, and fill your Indian dating profile to get 3x more matches.",
+    date: "2026-05-18",
+    readTime: "5 min read",
+    category: "Dating Tips",
+    keywords: ["dating profile tips India", "how to write dating profile", "dating bio ideas India", "Indian dating profile", "get more matches dating app"],
+    content: [
+      { type: "p", text: "Your dating profile is the difference between getting matches and being ignored. Most people put zero effort into their profile and then wonder why nobody swipes right. Here's exactly how to write a profile that gets results on Indian dating apps." },
+      { type: "h2", text: "The Perfect Profile Photo" },
+      { type: "p", text: "Your main photo is everything. It's the first thing anyone sees and decides in under a second whether to swipe right. Follow these rules:" },
+      { type: "ul", items: ["Use a clear, well-lit photo of your face — no sunglasses or group photos", "Smile genuinely — warmth is attractive", "Dress like you would on a first date", "Natural light beats a studio background every time", "Add 3–5 photos total: one close-up, one full body, one hobby/activity photo"] },
+      { type: "h2", text: "How to Write Your Bio" },
+      { type: "p", text: "Most Indian dating bios are either blank or say 'looking for serious relationship'. Don't do that. Your bio should show your personality in 3–4 short lines." },
+      { type: "h3", text: "Bad Bio Example" },
+      { type: "p", text: "\"I'm a simple person. Looking for someone genuine. Love family. I'm serious.\" — This tells someone nothing about you." },
+      { type: "h3", text: "Good Bio Example" },
+      { type: "p", text: "\"Software engineer by day, home chef by night 🍛 | Obsessed with cricket and monsoon chai | Looking for someone to explore Bangalore's food scene with. Ask me about my worst cooking disaster.\" — This is specific, fun, and gives someone a reason to message you." },
+      { type: "h2", text: "What to Put in Your Interests" },
+      { type: "p", text: "Pick interests that are actually true. The more specific, the better. \"Cooking\" is fine. \"Making biryani from scratch\" is better. Shared specific interests are great conversation starters." },
+      { type: "h2", text: "The One Thing Most Indians Miss" },
+      { type: "p", text: "Most Indian profiles are too formal and serious. Dating apps are supposed to be fun. Show some personality — a little humor, a specific detail about your life, or something that makes you uniquely you goes a long way." },
+      { type: "cta", text: "Create Your Profile on Dil Milao — Free" },
+    ],
+  },
+  {
+    slug: "dating-tips-indian-men",
+    title: "Dating Tips for Indian Men: How to Find the Right Match in 2026",
+    description: "Practical dating tips for Indian men — from creating a profile that stands out to having great first conversations and planning memorable dates.",
+    date: "2026-05-15",
+    readTime: "6 min read",
+    category: "Dating Tips",
+    keywords: ["dating tips for Indian men", "how to date in India", "Indian men dating advice", "find girlfriend India", "dating advice India"],
+    content: [
+      { type: "p", text: "Dating in India as a man can feel confusing. The rules have changed — women have more choices than ever, and the days of simply being 'a good provider' being enough are over. Here's what actually works in 2026." },
+      { type: "h2", text: "1. Work on Your Profile Before Anything Else" },
+      { type: "p", text: "Most men get 80% fewer matches than women on dating apps, and the primary reason is a weak profile. A clear, smiling photo and a specific bio make you stand out immediately. Invest 30 minutes in getting this right before swiping." },
+      { type: "h2", text: "2. Your First Message Matters Enormously" },
+      { type: "p", text: "\"Hey\", \"Hello beautiful\", or \"Hi\" gets ignored. Reference something specific from her profile — her city, a shared interest, something in her bio. A genuine question works far better than a compliment." },
+      { type: "ul", items: [
+        "\"You mentioned loving Hyderabadi biryani — do you have a go-to place or do you cook it yourself?\"",
+        "\"Saw you're into trekking. Kedarnath or something closer like Coorg?\"",
+        "\"Engineer + yoga? That combination is either very zen or very chaotic — which is it? 😄\"",
+      ] },
+      { type: "h2", text: "3. Be Clear About What You're Looking For" },
+      { type: "p", text: "Indian women on dating apps are tired of men who are vague about their intentions. If you're looking for a serious relationship, say so clearly in your profile. It filters out mismatches and attracts women who want the same thing." },
+      { type: "h2", text: "4. Plan a Real First Date" },
+      { type: "p", text: "Don't ask 'so where do you want to go?' Plan something specific. A popular café, a walk at a good spot, or a short activity like a bookshop visit. Taking initiative shows confidence and respect for her time." },
+      { type: "h2", text: "5. Respect Her Boundaries and Response Time" },
+      { type: "p", text: "Don't double-message, don't get upset if she takes time to reply, and don't push for a date before building rapport through conversation. Patience and genuine interest go further than urgency." },
+      { type: "h2", text: "6. Use Filters Intelligently" },
+      { type: "p", text: "On apps like Dil Milao, filter by city and shared interests rather than just age and looks. Someone who shares your values and is from the same city has a much higher chance of becoming a real partner." },
+      { type: "cta", text: "Find Your Match on Dil Milao — Join Free" },
+    ],
+  },
+  {
+    slug: "how-to-find-serious-relationship-india",
+    title: "How to Find a Serious Relationship in India Using Dating Apps",
+    description: "Dating apps in India are full of people who want something serious — if you know how to find them. Here's a step-by-step guide to finding a genuine relationship online.",
+    date: "2026-05-12",
+    readTime: "7 min read",
+    category: "Relationships",
+    keywords: ["serious relationship India", "find girlfriend boyfriend India", "how to find serious relationship dating app", "Indian online dating tips", "genuine connections India"],
+    content: [
+      { type: "p", text: "The biggest complaint about Indian dating apps is that nobody seems to want anything serious. But that's not entirely true — there are millions of Indians looking for genuine relationships online. The challenge is knowing how to find them and filter out those who aren't." },
+      { type: "h2", text: "Step 1: State Your Intentions Clearly" },
+      { type: "p", text: "Add a line in your profile that clearly states what you're looking for. 'Looking for a serious relationship' sounds basic, but it filters out people who just want to pass time. Be specific: 'Looking for someone to build something real with — not here for timepass.'" },
+      { type: "h2", text: "Step 2: Choose the Right App" },
+      { type: "p", text: "Not all apps attract the same type of users. Apps built for Indian users with filters for religion, city, and relationship intent tend to attract more serious users. Dil Milao specifically is designed for young Indians looking for real connections, not casual hookups." },
+      { type: "h2", text: "Step 3: Spend Time on Your Profile" },
+      { type: "p", text: "Serious people look for serious profiles. A blank bio, one photo, and zero effort signals to potential partners that you're not ready for something real. Fill everything out — bio, interests, what you're looking for." },
+      { type: "h2", text: "Step 4: Have Meaningful Conversations Early" },
+      { type: "p", text: "Move beyond small talk quickly. Ask about what they're looking for, their values, their relationship with family. This sounds intense but it's actually how serious people screen each other. If someone dodges these questions, that's information." },
+      { type: "ul", items: [
+        "\"What does a good relationship look like to you?\"",
+        "\"Are you close with your family?\"",
+        "\"What are you actually looking for right now?\"",
+        "\"Where do you see yourself in 2–3 years?\"",
+      ] },
+      { type: "h2", text: "Step 5: Meet in Person Sooner Rather Than Later" },
+      { type: "p", text: "Don't spend months just texting. Good conversation over text doesn't guarantee chemistry in person. Suggest a coffee or a short public meet within 2–3 weeks of matching. This saves everyone's time and filters out people who are only comfortable texting." },
+      { type: "h2", text: "Step 6: Be Patient — It's a Numbers Game" },
+      { type: "p", text: "Finding a serious relationship takes time. You will match with people who aren't right for you. That's normal. Stay consistent, be genuine, and the right person will come along." },
+      { type: "cta", text: "Start Your Serious Search on Dil Milao — Free to Join" },
+    ],
+  },
+  {
+    slug: "first-date-ideas-india",
+    title: "Best First Date Ideas in India: Affordable, Fun & Impressive",
+    description: "Planning your first date in India? Here are 15 creative first date ideas that work in Indian cities — from Mumbai to Delhi to Bangalore — that are fun, affordable, and memorable.",
+    date: "2026-05-08",
+    readTime: "5 min read",
+    category: "Dating Tips",
+    keywords: ["first date ideas India", "first date ideas Mumbai", "first date ideas Bangalore", "best first date India", "cheap first date ideas India"],
+    content: [
+      { type: "p", text: "The first date sets the tone for everything that follows. It doesn't need to be expensive — it needs to be comfortable, fun, and give both of you a chance to actually talk. Here are the best first date ideas that work across Indian cities." },
+      { type: "h2", text: "Café Dates (The Classic for Good Reason)" },
+      { type: "p", text: "A good café is still the best first date for most people. It's neutral ground, comfortable, easy to leave if things don't work out, and the conversation flows naturally over coffee. Pick somewhere with good ambiance — not a crowded mall food court." },
+      { type: "h2", text: "Street Food + Walk" },
+      { type: "p", text: "One of the best underrated first dates in India. Pick a popular street food area in your city — Bandra in Mumbai, Kammanahalli in Bangalore, Chandni Chowk in Delhi — and just walk, eat, and talk. It's casual, affordable, and the food gives you something to talk about." },
+      { type: "h2", text: "Museum or Art Gallery" },
+      { type: "p", text: "Great for people who enjoy culture. Most Indian cities have excellent museums or galleries. The exhibits give you natural conversation topics and you learn about each other's interests organically. Mumbai's CSMVS, Bangalore's National Gallery of Modern Art, or Delhi's National Museum are excellent choices." },
+      { type: "h2", text: "Bookshop Date" },
+      { type: "p", text: "Browse a good bookshop together. You immediately learn what someone reads, what they're curious about, and what kind of thinker they are. Atta Galatta in Bangalore, Kitab Khana in Mumbai, and Bahrisons in Delhi are perfect for this." },
+      { type: "h2", text: "Evening Walk at a Famous Landmark" },
+      { type: "p", text: "Marine Drive in Mumbai, India Gate in Delhi, Cubbon Park in Bangalore, Charminar in Hyderabad — a pleasant evening walk at a landmark is free, beautiful, and naturally relaxing. The lack of noise makes real conversation easy." },
+      { type: "h2", text: "What to Avoid on a First Date in India" },
+      { type: "ul", items: [
+        "Expensive dinners — too much pressure for a first meeting",
+        "Movies — you can't talk and learn nothing about each other",
+        "Overly loud bars — hard to have a real conversation",
+        "Asking them home — way too soon",
+        "Bringing friends — defeats the whole purpose",
+      ] },
+      { type: "h2", text: "The Most Important Thing About First Dates" },
+      { type: "p", text: "The venue matters far less than you think. What matters is being present, genuinely curious about the other person, and relaxed. Ask good questions, listen well, and let the conversation flow naturally." },
+      { type: "cta", text: "Find Someone to Go on a Date With — Join Dil Milao Free" },
+    ],
+  },
+  {
+    slug: "how-to-spot-fake-profiles-dating-apps-india",
+    title: "How to Spot Fake Profiles on Indian Dating Apps (And Stay Safe)",
+    description: "Fake profiles are a real problem on Indian dating apps. Learn the warning signs of fake accounts, how to verify someone is real, and how to stay safe while dating online.",
+    date: "2026-05-05",
+    readTime: "5 min read",
+    category: "Safety",
+    keywords: ["fake profiles dating apps India", "how to spot fake dating profile", "online dating safety India", "dating app scams India", "verify dating profile India"],
+    content: [
+      { type: "p", text: "Fake profiles are a frustrating reality on Indian dating apps. From romance scammers to people using stolen photos, knowing the warning signs protects you from wasted time and potential harm. Here's how to identify fake profiles quickly." },
+      { type: "h2", text: "Warning Signs of a Fake Profile" },
+      { type: "ul", items: [
+        "Only 1–2 photos, all looking professionally shot or model-quality",
+        "Bio is vague or copied from somewhere else ('I love to travel, eat, and laugh')",
+        "Claims to be abroad or in the military and can't video call",
+        "Moves very fast — 'I feel like I know you already' within days",
+        "Asks for money, gift cards, or personal financial help",
+        "Phone number doesn't match their claimed city (different area code)",
+        "Refuses to video call even after weeks of chatting",
+      ] },
+      { type: "h2", text: "How to Verify Someone is Real" },
+      { type: "p", text: "The quickest verification: ask for a short video call. Genuine people agree easily. Scammers always have an excuse — poor internet, broken camera, busy schedule. If they refuse multiple times, it's a red flag." },
+      { type: "h3", text: "Reverse Image Search" },
+      { type: "p", text: "Save their profile photo and run it through Google Images or TinEye. If it appears on stock photo sites or belongs to someone else, the account is fake." },
+      { type: "h2", text: "Common Dating App Scams in India" },
+      { type: "h3", text: "The Emergency Money Scam" },
+      { type: "p", text: "After building rapport over weeks, they claim a sudden emergency — medical bills, stuck abroad, family crisis — and ask for money. This is always a scam. No matter how real the connection felt, do not send money to someone you haven't met in person." },
+      { type: "h3", text: "The Investment Scam" },
+      { type: "p", text: "They mention making great returns from crypto or a special investment platform, share 'proof', and encourage you to invest. These platforms are fake and you will lose your money." },
+      { type: "h2", text: "How to Stay Safe on Indian Dating Apps" },
+      { type: "ul", items: [
+        "Use apps with verified profiles — Dil Milao requires photo verification",
+        "Don't share your home address, workplace, or financial details early on",
+        "Meet in public places for the first few dates",
+        "Tell a friend where you're going and who you're meeting",
+        "Trust your gut — if something feels off, it probably is",
+        "Report suspicious profiles immediately so others are protected",
+      ] },
+      { type: "h2", text: "The Safest Dating Apps in India" },
+      { type: "p", text: "Apps like Dil Milao use photo verification to reduce fake profiles significantly. The mutual match system also means you never get messages from people you haven't matched with — reducing unsolicited contact." },
+      { type: "cta", text: "Join Dil Milao — Verified Profiles, Safer Dating" },
+    ],
+  },
+];
+
+export const ALL_BLOG_SLUGS = BLOG_POSTS.map((p) => p.slug);
+
+export function getBlogPost(slug: string): BlogPost | undefined {
+  return BLOG_POSTS.find((p) => p.slug === slug);
+}
