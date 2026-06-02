@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase";
 
 declare global {
   interface Window {
-    Cashfree: (options: { mode: string }) => {
+    Cashfree: new (options: { mode: string }) => {
       checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<{
         error?: { message: string };
         paymentDetails?: { paymentMessage: string };
@@ -172,7 +172,7 @@ export default function PremiumPage() {
 
       const { orderId, paymentSessionId } = resData;
 
-      const cashfree = window.Cashfree({
+      const cashfree = new window.Cashfree({
         mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
       });
 
