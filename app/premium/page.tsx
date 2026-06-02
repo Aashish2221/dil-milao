@@ -1,22 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Crown, Zap, Check, Shield, Star, CheckCircle, AlertCircle, Loader } from "lucide-react";
-import Script from "next/script";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase";
-
-declare global {
-  interface Window {
-    Cashfree: new (options: { mode: string }) => {
-      checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<{
-        error?: { message: string };
-        paymentDetails?: { paymentMessage: string };
-        redirect?: boolean;
-      }>;
-    };
-  }
-}
 
 const PLANS = [
   {
@@ -172,7 +159,8 @@ export default function PremiumPage() {
 
       const { orderId, paymentSessionId } = resData;
 
-      const cashfree = new window.Cashfree({
+      const { load } = await import("@cashfreepayments/cashfree-js");
+      const cashfree = await load({
         mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
       });
 
@@ -229,7 +217,6 @@ export default function PremiumPage() {
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
-      <Script src="https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js" strategy="afterInteractive" />
       <Navbar />
 
       <div className="max-w-lg mx-auto px-4 pt-6">
