@@ -2,9 +2,11 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const LAST_UPDATED = "27 May 2025";
+const LAST_UPDATED = "02 June 2025";
 const APP_EMAIL = "support@dilmilao.app";
 const APP_NAME = "Dil Milao";
+const LEGAL_NAME = "Aashish Patil";
+const LEGAL_ADDRESS = "India";
 
 export default function TermsPage() {
   const router = useRouter();
@@ -25,7 +27,7 @@ export default function TermsPage() {
         </div>
 
         <p className="text-white/60 text-sm leading-relaxed">
-          Welcome to {APP_NAME}. By accessing or using our app, you agree to be bound by these Terms &amp; Conditions. Please read them carefully. If you do not agree, do not use the app.
+          {APP_NAME} is operated by <strong className="text-white/80">{LEGAL_NAME}</strong>, an individual based in {LEGAL_ADDRESS}. By accessing or using our app, you agree to be bound by these Terms &amp; Conditions. Please read them carefully. If you do not agree, do not use the app.
         </p>
 
         <Section title="1. Eligibility">
@@ -63,7 +65,7 @@ export default function TermsPage() {
         <Section title="5. Premium Subscriptions">
           <ul>
             <li>{APP_NAME} offers paid premium plans (Gold, Platinum) and a one-time Starter Trial (₹5 for 3 days).</li>
-            <li>All payments are processed securely via Razorpay.</li>
+            <li>All payments are processed securely via Cashfree Payments.</li>
             <li>Subscription pricing is displayed in Indian Rupees (INR) inclusive of applicable taxes.</li>
             <li>Premium access is granted immediately upon successful payment verification.</li>
             <li>Subscriptions do not auto-renew. You must manually purchase a new plan when your current plan expires.</li>
@@ -114,9 +116,12 @@ export default function TermsPage() {
 
         <Section title="13. Contact Us">
           <p>For any questions regarding these Terms, please contact us at:</p>
-          <p className="mt-2">
-            <a href={`mailto:${APP_EMAIL}`} className="text-red-400 hover:text-red-300 transition-colors">{APP_EMAIL}</a>
-          </p>
+          <div className="mt-2 space-y-1">
+            <p className="text-white/70 font-medium">{LEGAL_NAME}</p>
+            <p>Operating as: {APP_NAME}</p>
+            <p>{LEGAL_ADDRESS}</p>
+            <p><a href={`mailto:${APP_EMAIL}`} className="text-red-400 hover:text-red-300 transition-colors">{APP_EMAIL}</a></p>
+          </div>
         </Section>
       </div>
     </div>

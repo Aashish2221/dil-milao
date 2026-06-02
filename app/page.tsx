@@ -385,7 +385,7 @@ export default function LandingPage() {
               <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
               <Link href="/login" className="hover:text-white/60 transition-colors">Login</Link>
             </div>
-            <p>© 2026 Dil Milao. Made with ❤️ for India.</p>
+            <p>© 2026 Dil Milao. Operated by <strong className="text-white/40">Aashish Patil</strong>. Made with ❤️ for India.</p>
           </div>
         </div>
       </footer>

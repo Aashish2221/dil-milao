@@ -2,9 +2,11 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const LAST_UPDATED = "27 May 2025";
+const LAST_UPDATED = "02 June 2025";
 const APP_EMAIL = "support@dilmilao.app";
 const APP_NAME = "Dil Milao";
+const LEGAL_NAME = "Aashish Patil";
+const LEGAL_ADDRESS = "India";
 
 export default function PrivacyPage() {
   const router = useRouter();
@@ -25,7 +27,7 @@ export default function PrivacyPage() {
         </div>
 
         <p className="text-white/60 text-sm leading-relaxed">
-          {APP_NAME} ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains what personal information we collect, how we use it, and your rights regarding that information. By using the app, you agree to the practices described here.
+          {APP_NAME} is operated by <strong className="text-white/80">{LEGAL_NAME}</strong> ("{APP_NAME}", "we", "our", or "us"), an individual based in {LEGAL_ADDRESS}. We are committed to protecting your privacy. This Privacy Policy explains what personal information we collect, how we use it, and your rights regarding that information. By using the app, you agree to the practices described here.
         </p>
 
         <Section title="1. Information We Collect">
@@ -46,7 +48,7 @@ export default function PrivacyPage() {
             <li>Likes you send and receive</li>
             <li>Matches created</li>
             <li>Messages exchanged with matches</li>
-            <li>Premium subscription and payment history (payment IDs via Razorpay)</li>
+            <li>Premium subscription and payment history (payment IDs via Cashfree)</li>
           </ul>
           <p className="mt-3"><strong>Device & Technical Data</strong></p>
           <ul>
@@ -61,7 +63,7 @@ export default function PrivacyPage() {
             <li>To show your profile to other users and show other profiles to you</li>
             <li>To enable matching, likes, and chat features</li>
             <li>To send push notifications about matches and messages (only if you opt in)</li>
-            <li>To process premium subscription payments via Razorpay</li>
+            <li>To process premium subscription payments via Cashfree Payments</li>
             <li>To enforce our Terms &amp; Conditions and keep the platform safe</li>
             <li>To improve app performance and user experience</li>
           </ul>
@@ -77,7 +79,7 @@ export default function PrivacyPage() {
           <p>We do <strong>not</strong> sell, rent, or trade your personal information to third parties.</p>
           <p className="mt-2">We share limited data only in these circumstances:</p>
           <ul>
-            <li><strong>Razorpay</strong> — your email and payment amount are shared solely to process payments. We do not store your card or UPI details.</li>
+            <li><strong>Cashfree Payments</strong> — your email and payment amount are shared solely to process payments. We do not store your card or UPI details.</li>
             <li><strong>Legal requirements</strong> — if required by law or a court order, we may disclose data to relevant authorities.</li>
             <li><strong>Other users</strong> — your public profile (name, age, photo, bio, location, interests, religion) is visible to other users of the app as part of the matching experience.</li>
           </ul>
@@ -120,9 +122,12 @@ export default function PrivacyPage() {
 
         <Section title="12. Contact Us">
           <p>If you have any questions, concerns, or requests related to your privacy, please contact us:</p>
-          <p className="mt-2">
-            <a href={`mailto:${APP_EMAIL}`} className="text-red-400 hover:text-red-300 transition-colors">{APP_EMAIL}</a>
-          </p>
+          <div className="mt-2 space-y-1">
+            <p className="text-white/70 font-medium">{LEGAL_NAME}</p>
+            <p>Operating as: {APP_NAME}</p>
+            <p>{LEGAL_ADDRESS}</p>
+            <p><a href={`mailto:${APP_EMAIL}`} className="text-red-400 hover:text-red-300 transition-colors">{APP_EMAIL}</a></p>
+          </div>
         </Section>
       </div>
     </div>
