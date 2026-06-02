@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["razorpay"],
   poweredByHeader: false,
   compress: true,
   images: {

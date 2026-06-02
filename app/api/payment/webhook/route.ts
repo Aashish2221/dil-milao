@@ -4,33 +4,27 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-// Razorpay sends webhooks with raw body — must NOT use body parsers.
+// Cashfree webhook signature: Base64(HMAC_SHA256(timestamp + rawBody, secret_key))
 export async function POST(req: NextRequest) {
   const body = await req.text();
-  const signature = req.headers.get("x-razorpay-signature") ?? "";
+  const timestamp = req.headers.get("x-webhook-timestamp") ?? "";
+  const signature = req.headers.get("x-webhook-signature") ?? "";
 
-  if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
-    console.error("RAZORPAY_WEBHOOK_SECRET not set");
+  if (!process.env.CASHFREE_SECRET_KEY) {
+    console.error("CASHFREE_SECRET_KEY not set");
     return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
   }
 
-  // Verify webhook authenticity
   const expected = crypto
-    .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-    .update(body)
-    .digest("hex");
+    .createHmac("sha256", process.env.CASHFREE_SECRET_KEY)
+    .update(timestamp + body)
+    .digest("base64");
 
   if (expected !== signature) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const event = JSON.parse(body) as {
-    event: string;
-    payload: {
-      subscription?: { entity: { id: string } };
-      payment?: { entity: { id: string } };
-    };
-  };
+  const event = JSON.parse(body);
 
   // Use service role key — webhooks have no user session
   const supabase = createClient(
@@ -38,70 +32,65 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const subscriptionId = event.payload.subscription?.entity.id;
+  // Handle successful payment (fallback if user's verify call failed)
+  if (event.type === "PAYMENT_SUCCESS_WEBHOOK") {
+    const orderId: string = event.data?.order?.order_id ?? "";
+    // Order IDs are formatted: dm_{plan}_{timestamp}
+    const parts = orderId.split("_");
+    const plan = parts[1];
 
-  if (event.event === "subscription.charged" && subscriptionId) {
-    // Auto-renewal succeeded — extend premium by 30 days from current expiry
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, premium_expires_at")
-      .eq("razorpay_subscription_id", subscriptionId)
-      .single();
+    if (plan && orderId) {
+      // Check if this order was already processed by the client-side verify call
+      const { count } = await supabase
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("razorpay_order_id", orderId);
 
-    if (profile) {
-      const base =
-        profile.premium_expires_at && new Date(profile.premium_expires_at) > new Date()
-          ? new Date(profile.premium_expires_at)
-          : new Date();
-      base.setDate(base.getDate() + 30);
+      // Already recorded — nothing to do
+      if ((count ?? 0) > 0) {
+        return NextResponse.json({ received: true });
+      }
 
-      await supabase
-        .from("profiles")
-        .update({
-          is_premium: true,
-          premium_expires_at: base.toISOString(),
-          subscription_status: "active",
-        })
-        .eq("id", profile.id);
+      // Not yet recorded — find user by customer_id (which is user.id)
+      const customerId: string = event.data?.customer_details?.customer_id ?? "";
+      if (!customerId) return NextResponse.json({ received: true });
 
-      // Record the renewal payment
-      const paymentId = event.payload.payment?.entity.id;
-      if (paymentId) {
-        try {
-          await supabase.from("payments").insert({
-            user_id: profile.id,
-            plan: "renewal",
-            amount: 0,
-            razorpay_order_id: subscriptionId,
-            razorpay_payment_id: paymentId,
-          });
-        } catch { /* ignore duplicate payment inserts */ }
+      const orderAmount: number = event.data?.order?.order_amount ?? 0;
+      const cfOrderId: string = String(event.data?.order?.cf_order_id ?? orderId);
+
+      const PLAN_DAYS: Record<string, number> = { trial: 3, gold: 30, platinum: 30 };
+      const PREMIUM_PLANS = new Set(["trial", "gold", "platinum"]);
+      const BOOST_CREDITS: Record<string, number> = { boost_1: 1, boost_5: 5, boost_10: 10 };
+
+      await supabase.from("payments").insert({
+        user_id: customerId,
+        plan,
+        amount: orderAmount,
+        razorpay_order_id: orderId,
+        razorpay_payment_id: cfOrderId,
+      }).then(() => {});
+
+      if (PREMIUM_PLANS.has(plan)) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + (PLAN_DAYS[plan] ?? 30));
+        await supabase
+          .from("profiles")
+          .update({ is_premium: true, premium_expires_at: expiresAt.toISOString() })
+          .eq("id", customerId);
+      }
+
+      if (plan in BOOST_CREDITS) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("boost_credits")
+          .eq("id", customerId)
+          .single();
+        await supabase
+          .from("profiles")
+          .update({ boost_credits: (profile?.boost_credits ?? 0) + BOOST_CREDITS[plan] })
+          .eq("id", customerId);
       }
     }
-  }
-
-  if (event.event === "subscription.cancelled" && subscriptionId) {
-    // User cancelled — premium stays until expiry date, but won't renew
-    await supabase
-      .from("profiles")
-      .update({ subscription_status: "cancelled" })
-      .eq("razorpay_subscription_id", subscriptionId);
-  }
-
-  if (event.event === "subscription.halted" && subscriptionId) {
-    // Payment failed repeatedly — mark as halted; premium expires naturally
-    await supabase
-      .from("profiles")
-      .update({ subscription_status: "halted" })
-      .eq("razorpay_subscription_id", subscriptionId);
-  }
-
-  if (event.event === "subscription.completed" && subscriptionId) {
-    // 12-month total_count reached — subscription ends
-    await supabase
-      .from("profiles")
-      .update({ subscription_status: "completed" })
-      .eq("razorpay_subscription_id", subscriptionId);
   }
 
   return NextResponse.json({ received: true });

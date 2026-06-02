@@ -8,9 +8,12 @@ import { createClient } from "@/lib/supabase";
 
 declare global {
   interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (resp: unknown) => void) => void;
+    Cashfree: (options: { mode: string }) => {
+      checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<{
+        error?: { message: string };
+        paymentDetails?: { paymentMessage: string };
+        redirect?: boolean;
+      }>;
     };
   }
 }
@@ -83,7 +86,6 @@ const BOOSTS = [
 ];
 
 export default function PremiumPage() {
-  const [userEmail, setUserEmail] = useState("");
   const [isPremium, setIsPremium] = useState(false);
   const [premiumExpires, setPremiumExpires] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
@@ -100,7 +102,6 @@ export default function PremiumPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      setUserEmail(user.email ?? "");
 
       const { data } = await supabase
         .from("profiles")
@@ -153,11 +154,6 @@ export default function PremiumPage() {
   }
 
   async function openCheckout(planId: string) {
-    if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-      setError("Payment not configured yet. Add your Razorpay keys to .env.local");
-      return;
-    }
-
     setPaying(planId);
     setError("");
     setSuccess("");
@@ -169,75 +165,71 @@ export default function PremiumPage() {
         body: JSON.stringify({ plan: planId }),
       });
 
-      if (!res.ok) throw new Error("Failed to create order");
-      const { orderId, amount } = await res.json();
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || "Failed to create order");
+      }
 
-      const plan = [...PLANS, ...BOOSTS].find((p) => p.id === planId);
-      const description = plan ? `${plan.name} — ${plan.price}` : planId;
+      const { orderId, paymentSessionId } = resData;
 
-      const rzp = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        order_id: orderId,
-        amount,
-        currency: "INR",
-        name: "Dil Milao",
-        description,
-        image: "/favicon.ico",
-        prefill: { email: userEmail },
-        theme: { color: "#ff6b6b" },
-        modal: { ondismiss: () => setPaying(null) },
-        handler: async (response: unknown) => {
-          const r = response as {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
-          };
-          const verifyRes = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...r, plan: planId }),
-          });
-
-          if (verifyRes.ok) {
-            const isPremiumPlan = planId === "trial" || planId === "gold" || planId === "platinum";
-            if (isPremiumPlan) {
-              setIsPremium(true);
-              const days = planId === "trial" ? 3 : 30;
-              const exp = new Date();
-              exp.setDate(exp.getDate() + days);
-              setPremiumExpires(exp.toISOString());
-              if (planId === "trial") setTrialUsed(true);
-            }
-            setSuccess(
-              planId === "trial"
-                ? "Welcome to Premium! Enjoy 3 days of unlimited features for just ₹5!"
-                : isPremiumPlan
-                  ? `Payment successful! You're now a ${plan?.name} member. Enjoy unlimited features!`
-                  : `Boost purchased! Your profile will appear at the top of feeds.`
-            );
-          } else {
-            setError("Payment verification failed. Contact support with your payment ID.");
-          }
-          setPaying(null);
-        },
+      const cashfree = window.Cashfree({
+        mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
       });
 
-      rzp.on("payment.failed", (resp: unknown) => {
-        const r = resp as { error: { description: string } };
-        setError(`Payment failed: ${r.error.description}`);
+      const result = await cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_modal",
+      });
+
+      if (result.error) {
+        setError(`Payment failed: ${result.error.message}`);
         setPaying(null);
+        return;
+      }
+
+      if (result.redirect) {
+        // Some payment methods do a full redirect — user will return to /premium
+        return;
+      }
+
+      // Payment completed in modal — verify server-side
+      const verifyRes = await fetch("/api/payment/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, plan: planId }),
       });
 
-      rzp.open();
-    } catch {
-      setError("Something went wrong. Please try again.");
+      const planMeta = [...PLANS, ...BOOSTS].find((p) => p.id === planId);
+      if (verifyRes.ok) {
+        const isPremiumPlan = ["trial", "gold", "platinum"].includes(planId);
+        if (isPremiumPlan) {
+          setIsPremium(true);
+          const days = planId === "trial" ? 3 : 30;
+          const exp = new Date();
+          exp.setDate(exp.getDate() + days);
+          setPremiumExpires(exp.toISOString());
+          if (planId === "trial") setTrialUsed(true);
+        }
+        setSuccess(
+          planId === "trial"
+            ? "Welcome to Premium! Enjoy 3 days of unlimited features for just ₹5!"
+            : isPremiumPlan
+              ? `Payment successful! You're now a ${planMeta?.name} member. Enjoy unlimited features!`
+              : "Boost purchased! Your profile will appear at the top of feeds."
+        );
+      } else {
+        setError("Payment verification failed. Contact support with your order ID: " + orderId);
+      }
+      setPaying(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
       setPaying(null);
     }
   }
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "#0a0a0f" }}>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
+      <Script src="https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js" strategy="afterInteractive" />
       <Navbar />
 
       <div className="max-w-lg mx-auto px-4 pt-6">
@@ -482,7 +474,7 @@ export default function PremiumPage() {
             <Shield size={18} className="text-green-400" /> Safe & Secure Payments
           </h3>
           <div className="grid grid-cols-2 gap-3 text-sm text-white/40">
-            <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> Powered by Razorpay</div>
+            <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> Powered by Cashfree</div>
             <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> Cancel anytime</div>
             <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> UPI / Cards / NetBanking</div>
             <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> No refunds after purchase</div>
